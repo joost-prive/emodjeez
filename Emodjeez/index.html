@@ -42,6 +42,9 @@
         signInAnonymously(window.auth).then((u) => {
             console.log("Ingelogd als:", u.user.uid);
             window.currentUser = u.user;
+            if (typeof window.refreshActiveDuelButton === 'function') {
+                window.refreshActiveDuelButton();
+            }
 
             const urlParams = new URLSearchParams(window.location.search);
             const pendingGameId = urlParams.get('game');
@@ -450,6 +453,9 @@ body {
         <button class="btn btn-multi" onclick="showLobby()">
             <span>⚔️</span> <span id="txt-multi">1 vs 1 Duel</span>
         </button>
+        <button id="btn-resume-duel" class="btn btn-multi" onclick="resumeActiveDuel()" style="display:none;">
+            <span>🔁</span> <span id="txt-resume-duel">Actief 1v1 hervatten</span>
+        </button>
         <button class="btn btn-high" onclick="openHighscores()">
             <span>🏆</span> <span id="txt-high">Highscores</span>
         </button>
@@ -758,6 +764,9 @@ const translations = {
         duelDesc: "Speel tegelijk tegen een vriend.<br>Wie het eerst een fout maakt verliest!",
         newGame: "Nieuw Spel Starten",
         inviteFriend: "Heb je een link ontvangen? Klik daarop om mee te doen.",
+        resumeDuel: "Actief 1v1 hervatten",
+        resumeWaiting: "1v1: wachten op tegenstander",
+        gameAlreadyFinished: "Dit duel is al voorbij. Start een nieuw duel.",
         waitingOpp: "Wachten op tegenstander...",
         shareLink: "Stuur deze link naar je vriend:",
         shareWA: "📱 Deel via WhatsApp",
@@ -819,6 +828,9 @@ const translations = {
         duelDesc: "Play against a friend in real-time.<br>First one to make a mistake loses!",
         newGame: "Start New Game",
         inviteFriend: "Received a link? Click it to join.",
+        resumeDuel: "Resume active 1v1",
+        resumeWaiting: "1v1: waiting for opponent",
+        gameAlreadyFinished: "This duel is already finished. Start a new duel.",
         waitingOpp: "Waiting for opponent...",
         shareLink: "Send this link to your friend:",
         shareWA: "📱 Share via WhatsApp",
@@ -880,6 +892,9 @@ const translations = {
         duelDesc: "Spiele gleichzeitig gegen einen Freund.<br>Wer zuerst einen Fehler macht, verliert!",
         newGame: "Neues Spiel starten",
         inviteFriend: "Hast du einen Link erhalten? Klicke darauf, um mitzuspielen.",
+        resumeDuel: "Aktives 1v1 fortsetzen",
+        resumeWaiting: "1v1: warten auf Gegner",
+        gameAlreadyFinished: "Dieses Duell ist bereits beendet. Starte ein neues Duell.",
         waitingOpp: "Warten auf Gegner...",
         shareLink: "Sende diesen Link an deinen Freund:",
         shareWA: "📱 Via WhatsApp teilen",
@@ -962,6 +977,11 @@ function applyLanguage() {
     document.getElementById('btn-daily-played-board').innerText = t.dailyPlayedBoard;
     document.getElementById('btn-daily-played-close').innerText = t.close;
     document.getElementById('txt-multi').innerText = t.multi;
+    const resumeLabel = document.getElementById('txt-resume-duel');
+    if (resumeLabel) {
+        const resumeStatus = document.getElementById('btn-resume-duel')?.dataset?.status;
+        resumeLabel.innerText = resumeStatus === 'waiting' ? t.resumeWaiting : t.resumeDuel;
+    }
     document.getElementById('txt-high').innerText = t.high;
     document.getElementById('txt-high-title').innerText = t.highTitle;
     document.getElementById('txt-daily-high-title').innerText = t.dailyHighTitle;
@@ -1017,6 +1037,8 @@ let dailyEntryRef = null;
 let runCorrectEmojis = [];
 let lastResultContext = null;
 let isEvaluatingRound = false;
+let activeDuelId = null;
+let activeDuelStatus = null;
 const DAILY_EMOJI_COUNT = 30;
 const DAILY_NUMBER_BASE_DATE_KEY = '2026-02-28';
 
@@ -1025,6 +1047,89 @@ function clearGameSubscription() {
         unsubscribeGame();
     }
     unsubscribeGame = null;
+}
+
+async function findActiveDuelForUser() {
+    if (!window.currentUser) return null;
+
+    const { collection, query, where, limit, getDocs } = window.firebaseFuncs;
+    const ref = collection(window.db, "emodjeez_games");
+
+    const [hostSnap, guestSnap] = await Promise.all([
+        getDocs(query(ref, where("hostId", "==", window.currentUser.uid), limit(30))),
+        getDocs(query(ref, where("guestId", "==", window.currentUser.uid), limit(30)))
+    ]);
+
+    const candidates = [];
+
+    function collect(snapshot) {
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (data.status === 'waiting' || data.status === 'playing') {
+                const ts = data.timestamp && typeof data.timestamp.toDate === 'function'
+                    ? data.timestamp.toDate().getTime()
+                    : (data.clientTimestamp || 0);
+                candidates.push({ id: docSnap.id, data, ts });
+            }
+        });
+    }
+
+    collect(hostSnap);
+    collect(guestSnap);
+
+    if (candidates.length === 0) return null;
+
+    candidates.sort((a, b) => b.ts - a.ts);
+    return candidates[0];
+}
+
+async function refreshActiveDuelButton() {
+    const btn = document.getElementById('btn-resume-duel');
+    const label = document.getElementById('txt-resume-duel');
+    if (!btn || !label) return;
+
+    if (!window.currentUser) {
+        btn.style.display = 'none';
+        activeDuelId = null;
+        activeDuelStatus = null;
+        return;
+    }
+
+    try {
+        const active = await findActiveDuelForUser();
+        if (!active) {
+            btn.style.display = 'none';
+            activeDuelId = null;
+            activeDuelStatus = null;
+            return;
+        }
+
+        activeDuelId = active.id;
+        activeDuelStatus = active.data.status;
+        btn.dataset.status = activeDuelStatus;
+        const t = translations[currentLang];
+        label.innerText = activeDuelStatus === 'waiting' ? t.resumeWaiting : t.resumeDuel;
+        btn.style.display = 'block';
+    } catch (e) {
+        console.error('Active duel lookup error', e);
+        btn.style.display = 'none';
+    }
+}
+window.refreshActiveDuelButton = refreshActiveDuelButton;
+
+function resumeActiveDuel() {
+    if (!activeDuelId) {
+        showLobby();
+        return;
+    }
+
+    gameId = activeDuelId;
+    playerRole = null;
+    runCorrectEmojis = [];
+    showLobby();
+    document.getElementById('lobby-start').style.display = 'none';
+    document.getElementById('lobby-share').style.display = 'none';
+    subscribeToGame();
 }
 
 function parseDateKeyAsUtc(dateKey) {
@@ -1105,6 +1210,7 @@ function shareGameResultWhatsapp() {
 window.onload = () => {
     initLanguage();
     updateProfileDisplay();
+    refreshActiveDuelButton();
     // Check if user followed a link
     if (window.pendingInviteId) {
         window.checkAndJoin();
@@ -1439,6 +1545,8 @@ function showLobby() {
     if(!myUsername || myUsername === "Gast") { openNameChange(); return; }
     document.getElementById('start-screen').style.display = 'none';
     document.getElementById('lobby-ui').style.display = 'flex';
+    document.getElementById('lobby-start').style.display = 'block';
+    document.getElementById('lobby-share').style.display = 'none';
 }
 
 // Host Creates Game
@@ -1469,7 +1577,10 @@ async function createOnlineGame() {
         
         gameId = docRef.id;
         playerRole = 'host';
+        activeDuelId = gameId;
+        activeDuelStatus = 'waiting';
         waitForGuest();
+        refreshActiveDuelButton();
     } catch(e) {
         console.error(e);
         alert("Fout bij aanmaken spel.");
@@ -1515,27 +1626,40 @@ window.checkAndJoin = async function() {
     }
 
     const data = snapshot.data();
+    const myUid = window.currentUser.uid;
+
+    if (data.hostId === myUid || data.guestId === myUid) {
+        gameId = window.pendingInviteId;
+        window.pendingInviteId = null;
+        playerRole = data.hostId === myUid ? 'host' : 'guest';
+        runCorrectEmojis = [];
+        subscribeToGame();
+        return;
+    }
+
+    if (data.status === 'finished') {
+        window.pendingInviteId = null;
+        alert(translations[currentLang].gameAlreadyFinished);
+        return;
+    }
+
     if (data.status === 'playing' && data.guestId && data.guestId !== window.currentUser.uid) {
         alert("Dit duel is al bezig.");
         resetToHome();
         return;
     }
 
-    const shouldResetRound = data.status === 'finished';
     await updateDoc(gameRef, {
         guestId: window.currentUser.uid,
         guestName: myUsername,
         status: "playing",
         hostMove: null,
-        guestMove: null,
-        ...(shouldResetRound ? {
-            currentEmojiIdx: Math.floor(Math.random() * EMOJI_DB.length),
-            round: 1,
-            hostScore: 0,
-            guestScore: 0,
-            winner: null
-        } : {})
+        guestMove: null
     });
+
+    activeDuelId = gameId;
+    activeDuelStatus = 'playing';
+    refreshActiveDuelButton();
     
     subscribeToGame();
 }
@@ -1556,8 +1680,18 @@ function handleGameState(data) {
     const trans = translations[currentLang]; // Unieke naam
     const myUid = window.currentUser.uid;
     const isHost = (data.hostId === myUid);
+    playerRole = isHost ? 'host' : 'guest';
+    activeDuelId = gameId;
+    activeDuelStatus = data.status;
     
-    if (data.status === 'waiting') return;
+    if (data.status === 'waiting') {
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('lobby-ui').style.display = 'flex';
+        document.getElementById('lobby-start').style.display = 'none';
+        document.getElementById('lobby-share').style.display = 'block';
+        refreshActiveDuelButton();
+        return;
+    }
 
     if (document.getElementById('game-screen').style.display === 'none') {
         document.getElementById('lobby-ui').style.display = 'none';
@@ -1581,6 +1715,9 @@ function handleGameState(data) {
     if (data.status === 'finished') {
         gameActive = false;
         isEvaluatingRound = false;
+        activeDuelId = null;
+        activeDuelStatus = null;
+        refreshActiveDuelButton();
         let msg = "";
         let emoji = "";
         
@@ -1688,6 +1825,7 @@ async function evaluateRound() {
             transaction.update(gameRef, {
                 status: 'finished',
                 winner: winner,
+                finishedAt: Date.now(),
                 hostScore: hCorrect ? (latest.hostScore || 0) + 1 : (latest.hostScore || 0),
                 guestScore: gCorrect ? (latest.guestScore || 0) + 1 : (latest.guestScore || 0)
             });
@@ -1696,6 +1834,7 @@ async function evaluateRound() {
         console.error("Duel round evaluate error", e);
     } finally {
         isEvaluatingRound = false;
+        refreshActiveDuelButton();
     }
 }
 
