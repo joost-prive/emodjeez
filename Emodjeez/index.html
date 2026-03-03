@@ -1016,8 +1016,16 @@ let dailyEmojiIndex = 0;
 let dailyEntryRef = null;
 let runCorrectEmojis = [];
 let lastResultContext = null;
+let isEvaluatingRound = false;
 const DAILY_EMOJI_COUNT = 30;
 const DAILY_NUMBER_BASE_DATE_KEY = '2026-02-28';
+
+function clearGameSubscription() {
+    if (typeof unsubscribeGame === 'function') {
+        unsubscribeGame();
+    }
+    unsubscribeGame = null;
+}
 
 function parseDateKeyAsUtc(dateKey) {
     if (!dateKey) return null;
@@ -1441,6 +1449,8 @@ async function createOnlineGame() {
     const startEmojiIdx = Math.floor(Math.random() * EMOJI_DB.length);
 
     try {
+        clearGameSubscription();
+        isEvaluatingRound = false;
         runCorrectEmojis = [];
         const docRef = await addDoc(collection(window.db, "emodjeez_games"), {
             hostId: window.currentUser.uid,
@@ -1490,13 +1500,41 @@ window.checkAndJoin = async function() {
     gameId = window.pendingInviteId;
     window.pendingInviteId = null;
     playerRole = 'guest';
+    clearGameSubscription();
+    isEvaluatingRound = false;
     runCorrectEmojis = [];
 
-    const { doc, updateDoc } = window.firebaseFuncs;
-    await updateDoc(doc(window.db, "emodjeez_games", gameId), {
+    const { doc, updateDoc, getDoc } = window.firebaseFuncs;
+    const gameRef = doc(window.db, "emodjeez_games", gameId);
+    const snapshot = await getDoc(gameRef);
+
+    if (!snapshot.exists()) {
+        alert("Deze game-link is niet meer geldig.");
+        resetToHome();
+        return;
+    }
+
+    const data = snapshot.data();
+    if (data.status === 'playing' && data.guestId && data.guestId !== window.currentUser.uid) {
+        alert("Dit duel is al bezig.");
+        resetToHome();
+        return;
+    }
+
+    const shouldResetRound = data.status === 'finished';
+    await updateDoc(gameRef, {
         guestId: window.currentUser.uid,
         guestName: myUsername,
-        status: "playing"
+        status: "playing",
+        hostMove: null,
+        guestMove: null,
+        ...(shouldResetRound ? {
+            currentEmojiIdx: Math.floor(Math.random() * EMOJI_DB.length),
+            round: 1,
+            hostScore: 0,
+            guestScore: 0,
+            winner: null
+        } : {})
     });
     
     subscribeToGame();
@@ -1504,6 +1542,7 @@ window.checkAndJoin = async function() {
 
 function subscribeToGame() {
     const { doc, onSnapshot } = window.firebaseFuncs;
+    clearGameSubscription();
     
     unsubscribeGame = onSnapshot(doc(window.db, "emodjeez_games", gameId), (snapshot) => {
         if(!snapshot.exists()) return;
@@ -1525,6 +1564,7 @@ function handleGameState(data) {
         document.getElementById('start-screen').style.display = 'none';
         document.getElementById('game-screen').style.display = 'flex';
         isMultiplayer = true;
+        isDailyMode = false;
         gameActive = true;
         document.getElementById('game-mode-label').innerText = "1 VS 1";
         document.getElementById('game-info-right').style.display = 'block';
@@ -1540,6 +1580,7 @@ function handleGameState(data) {
 
     if (data.status === 'finished') {
         gameActive = false;
+        isEvaluatingRound = false;
         let msg = "";
         let emoji = "";
         
@@ -1571,7 +1612,9 @@ function handleGameState(data) {
         statusDiv.innerText = trans.statusWait;
     } else if (myMove && oppMove) {
         statusDiv.innerText = trans.statusEval;
-        evaluateRound();
+        if (!isEvaluatingRound) {
+            evaluateRound();
+        }
     } else {
         statusDiv.innerText = "";
     }
@@ -1607,6 +1650,9 @@ function shareWhatsapp() {
 }
 
 async function evaluateRound() {
+    if (isEvaluatingRound) return;
+    isEvaluatingRound = true;
+
     const { runTransaction, doc } = window.firebaseFuncs;
     const gameRef = doc(window.db, "emodjeez_games", gameId);
 
@@ -1648,6 +1694,8 @@ async function evaluateRound() {
         });
     } catch (e) {
         console.error("Duel round evaluate error", e);
+    } finally {
+        isEvaluatingRound = false;
     }
 }
 
