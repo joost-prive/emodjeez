@@ -599,11 +599,6 @@ body {
             <span style="font-size:2rem; cursor:pointer;" onclick="document.getElementById('daily-highscores-modal').style.display='none'">&times;</span>
         </div>
 
-        <div class="scope-bar" id="daily-hs-scope-bar">
-            <button class="scope-btn active" onclick="switchDailyScope('global', this)">🌎 Iedereen</button>
-            <button class="scope-btn" onclick="switchDailyScope('personal', this)">👤 Ik</button>
-        </div>
-
         <div style="margin-bottom: 12px;">
             <select id="daily-date-select" onchange="onDailyDateChange()" style="width:100%; padding:10px; border-radius:10px; background: transparent; color:#fff; border:1px solid rgba(255,255,255,0.2); font-weight:600;"></select>
         </div>
@@ -623,6 +618,7 @@ body {
         
         <p><strong>Solo:</strong> Één fout = Game Over. Hoe ver kom jij?</p>
         <p><strong>1 vs 1:</strong> Jullie zien dezelfde emoji. Wie het eerst een fout maakt, verliest.</p>
+        <p><strong>Daily:</strong> Dagelijks een vaste reeks aan Emoji's. Wie haalt de hoogste score van de dag?!</p>
 </div>
         <p style="margin-top: 20px; font-size: 0.8rem; text-align: center;">
             <a href="privacy.html" target="_blank" style="color: var(--secondary); text-decoration: none; opacity: 0.7;">Privacybeleid</a>
@@ -637,6 +633,18 @@ body {
         <h3>Wie ben jij?</h3>
         <input type="text" id="username-input" placeholder="Je naam..." maxlength="12" style="font-size:1.2rem; padding:10px; width:80%; text-align:center; border-radius:10px; border:none; margin-bottom:20px;">
         <button class="btn btn-solo" onclick="saveUsername()">Opslaan</button>
+    </div>
+</div>
+
+<div id="daily-played-modal" class="modal">
+    <div class="modal-content" style="max-width: 420px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 id="txt-daily-played-title" style="margin:0; color:var(--primary);">Daily al gespeeld</h3>
+            <span style="font-size:2rem; cursor:pointer;" onclick="closeDailyPlayedModal()">&times;</span>
+        </div>
+        <p id="daily-played-message" style="color:#ccc; margin-bottom:18px;">Je hebt de Daily van vandaag al gespeeld.</p>
+        <button id="btn-daily-played-board" class="btn btn-daily-list" onclick="openDailyHighscoresFromPlayedModal()">Bekijk Daily Ranglijst</button>
+        <button id="btn-daily-played-close" class="btn btn-back" onclick="closeDailyPlayedModal()">Sluiten</button>
     </div>
 </div>
 
@@ -727,6 +735,9 @@ const translations = {
         solo: "Solo Run",
         daily: "Daily",
         dailyRank: "Daily Ranglijst",
+        dailyPlayedTitle: "Daily al gespeeld",
+        dailyPlayedBoard: "Bekijk Daily Ranglijst",
+        close: "Sluiten",
         multi: "1 vs 1 Duel",
         high: "Highscores",
         highTitle: "Highscores",
@@ -737,7 +748,7 @@ const translations = {
         instruction: "Onder welke WhatsApp categorie valt deze emoji?",
         stop: "Stoppen",
         rulesTitle: "Spelregels",
-        rulesText: "<p>Emoji's kennen we allemaal! Maar onder welke categorie ze vallen bij WhatsApp? Djeez, best moeilijk!</p><p><strong>Solo:</strong> Één fout = Game Over. Hoe ver kom jij?</p><p><strong>1 vs 1:</strong> Jullie zien dezelfde emoji. Wie het eerst een fout maakt, verliest.</p>",
+        rulesText: "<p>Emoji's kennen we allemaal! Maar onder welke categorie ze vallen bij WhatsApp? Djeez, best moeilijk!</p><p><strong>Solo:</strong> Één fout = Game Over. Hoe ver kom jij?</p><p><strong>1 vs 1:</strong> Jullie zien dezelfde emoji. Wie het eerst een fout maakt, verliest.</p><p><strong>Daily:</strong> Dagelijks een vaste reeks aan Emoji's. Wie haalt de hoogste score van de dag?!</p>",
         rulesBtn: "Begrepen!",
         privacy: "Privacybeleid",
         wrong: "Dat was fout!",
@@ -778,13 +789,16 @@ const translations = {
         cat7: "Symbolen"
     },
     en: {
-        subtitle: "We all know emojis!<br>But which WhatsApp category do they belong to?<br>Geez, quite difficult!",
+        subtitle: "We all know emojis!<br>But which WhatsApp category do they belong to?<br>Djeez, quite difficult!",
         start: "START GAME",
         sectionDaily: "Daily",
         sectionRegular: "Regular",
         solo: "Solo Run",
         daily: "Daily",
         dailyRank: "Daily Leaderboard",
+        dailyPlayedTitle: "Daily already played",
+        dailyPlayedBoard: "View Daily Leaderboard",
+        close: "Close",
         multi: "1 vs 1 Duel",
         high: "Highscores",
         highTitle: "Highscores",
@@ -795,7 +809,7 @@ const translations = {
         instruction: "Which WhatsApp category does this emoji belong to?",
         stop: "Quit",
         rulesTitle: "Rules",
-        rulesText: "<p>We all know emojis! But which WhatsApp category do they belong to? Geez, quite difficult!</p><p><strong>Solo:</strong> One mistake = Game Over. How far can you go?</p><p><strong>1 vs 1:</strong> You see the same emoji. The first one to make a mistake loses.</p>",
+        rulesText: "<p>We all know emojis! But which WhatsApp category do they belong to? Djeez, quite difficult!</p><p><strong>Solo:</strong> One mistake = Game Over. How far can you go?</p><p><strong>1 vs 1:</strong> You see the same emoji. The first one to make a mistake loses.</p><p><strong>Daily:</strong> A fixed set of emojis every day. Who gets the highest score of the day?!</p>",
         rulesBtn: "Understood!",
         privacy: "Privacy Policy",
         wrong: "That was wrong!",
@@ -843,6 +857,9 @@ const translations = {
         solo: "Solo-Lauf",
         daily: "Daily",
         dailyRank: "Daily Rangliste",
+        dailyPlayedTitle: "Daily schon gespielt",
+        dailyPlayedBoard: "Daily Rangliste ansehen",
+        close: "Schließen",
         multi: "1 gegen 1 Duell",
         high: "Bestenlisten",
         highTitle: "Bestenlisten",
@@ -853,7 +870,7 @@ const translations = {
         instruction: "In welche WhatsApp-Kategorie fällt dieses Emoji?",
         stop: "Stoppen",
         rulesTitle: "Spielregeln",
-        rulesText: "<p>Emojis kennen wir alle! Aber in welche WhatsApp-Kategorie fallen sie? Djeez, ganz schön schwierig!</p><p><strong>Solo:</strong> Ein Fehler = Game Over. Wie weit kommst du?</p><p><strong>1 gegen 1:</strong> Ihr seht das gleiche Emoji. Wer zuerst einen Fehler macht, verliert.</p>",
+        rulesText: "<p>Emojis kennen wir alle! Aber in welche WhatsApp-Kategorie fallen sie? Djeez, ganz schön schwierig!</p><p><strong>Solo:</strong> Ein Fehler = Game Over. Wie weit kommst du?</p><p><strong>1 gegen 1:</strong> Ihr seht das gleiche Emoji. Wer zuerst einen Fehler macht, verliert.</p><p><strong>Daily:</strong> Täglich eine feste Emoji-Reihe. Wer holt die höchste Punktzahl des Tages?!</p>",
         rulesBtn: "Verstanden!",
         privacy: "Datenschutzerklärung",
         wrong: "Das war falsch!",
@@ -936,11 +953,14 @@ function applyLanguage() {
     // Titels & Menu
     document.querySelector('.app-subtitle').innerHTML = t.subtitle;
     document.querySelector('#start-screen h2').innerText = t.start;
-    document.getElementById('txt-section-daily').innerText = t.sectionDaily;
+    document.getElementById('txt-section-daily').innerText = `${t.sectionDaily} #${getDailyNumber(getUtcDateKey())}`;
     document.getElementById('txt-section-regular').innerText = t.sectionRegular;
     document.getElementById('txt-solo').innerText = t.solo;
     document.getElementById('txt-daily').innerText = t.daily;
     document.getElementById('txt-daily-rank').innerText = t.dailyRank;
+    document.getElementById('txt-daily-played-title').innerText = t.dailyPlayedTitle;
+    document.getElementById('btn-daily-played-board').innerText = t.dailyPlayedBoard;
+    document.getElementById('btn-daily-played-close').innerText = t.close;
     document.getElementById('txt-multi').innerText = t.multi;
     document.getElementById('txt-high').innerText = t.high;
     document.getElementById('txt-high-title').innerText = t.highTitle;
@@ -1023,6 +1043,29 @@ function setLastResultContext(mode, score) {
     };
 }
 
+function getDailyScoreHashtag(score) {
+    const normalized = Math.max(0, Math.floor(Number(score || 0)));
+
+    if (normalized <= 5) return '#EmodjeezNoob';
+    if (normalized <= 10) return '#EmodjeezRookie';
+    if (normalized <= 15) return '#EmodjeezTrainee';
+    if (normalized <= 20) return '#EmodjeezTalent';
+    if (normalized <= 25) return '#EmodjeezSkilled';
+    if (normalized <= 30) return '#EmodjeezPro';
+    if (normalized <= 35) return '#EmodjeezExpert';
+    if (normalized <= 40) return '#EmodjeezMaster';
+    if (normalized <= 45) return '#EmodjeezElite';
+    if (normalized <= 50) return '#EmodjeezHero';
+    if (normalized <= 55) return '#EmodjeezChampion';
+    if (normalized <= 60) return '#EmodjeezLegend';
+    if (normalized <= 65) return '#EmodjeezTitan';
+    if (normalized <= 70) return '#EmodjeezImmortal';
+    if (normalized <= 75) return '#EmodjeezSupremacy';
+
+    const godTierTags = ['#EmodjeezGOAT', '#EmodjeezGodMode', '#EmodjeezUniverseBest'];
+    return godTierTags[Math.floor(Math.random() * godTierTags.length)];
+}
+
 function shareGameResultWhatsapp() {
     if (!lastResultContext) return;
 
@@ -1032,14 +1075,19 @@ function shareGameResultWhatsapp() {
         lines.push(`Daily #${getDailyNumber(lastResultContext.dailyDateKey)}`);
     }
 
-    lines.push('<Emodjeez.net>');
+    lines.push('https://emodjeez.net');
     lines.push(`Mijn Score: ${lastResultContext.score}`);
 
     if (lastResultContext.emojis.length > 0) {
         lines.push(lastResultContext.emojis.join(' '));
     }
 
-    lines.push('#emodjeez');
+    if (lastResultContext.mode === 'daily' && lastResultContext.dailyDateKey) {
+        lines.push(`#Emodjeez${getDailyNumber(lastResultContext.dailyDateKey)}`);
+        lines.push(getDailyScoreHashtag(lastResultContext.score));
+    } else {
+        lines.push('#emodjeez');
+    }
 
     const text = lines.join('\n');
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
@@ -1062,6 +1110,21 @@ function updateProfileDisplay() {
 function openNameChange() {
     document.getElementById('username-input').value = myUsername;
     document.getElementById('name-modal').style.display = 'flex';
+}
+
+function openDailyPlayedModal(message) {
+    const msgEl = document.getElementById('daily-played-message');
+    if (msgEl) msgEl.innerText = message || '';
+    document.getElementById('daily-played-modal').style.display = 'flex';
+}
+
+function closeDailyPlayedModal() {
+    document.getElementById('daily-played-modal').style.display = 'none';
+}
+
+function openDailyHighscoresFromPlayedModal() {
+    closeDailyPlayedModal();
+    openDailyHighscores();
 }
 
 function saveUsername() {
@@ -1156,8 +1219,7 @@ async function startDailyMode() {
         const msg = score > 0
             ? t.dailyAlreadyPlayed.replace('{score}', score)
             : t.dailyNoRetry;
-        alert(msg);
-        openDailyHighscores();
+        openDailyPlayedModal(msg);
         return;
     }
 
@@ -1661,7 +1723,6 @@ async function saveHighscore(score, mode) {
 
 let hsScope = 'global';
 let hsTab = 'today';
-let dailyHsScope = 'global';
 let dailyHsDateKey = getUtcDateKey();
 let dailyAvailableDateKeys = [];
 
@@ -1835,14 +1896,6 @@ async function loadDailyHighscores() {
         let data = snapshot.docs.map(d => d.data());
         data = data.filter(item => item.finished !== false);
 
-        if (dailyHsScope === 'personal') {
-            if (window.currentUser?.uid) {
-                data = data.filter(item => item.uid === window.currentUser.uid);
-            } else {
-                data = data.filter(item => item.name === myUsername);
-            }
-        }
-
         data.sort((a, b) => {
             const scoreDiff = (b.score || 0) - (a.score || 0);
             if (scoreDiff !== 0) return scoreDiff;
@@ -1872,13 +1925,6 @@ async function loadDailyHighscores() {
         console.error(e);
         listEl.innerHTML = "Fout bij laden.";
     }
-}
-
-function switchDailyScope(scope, btn) {
-    dailyHsScope = scope;
-    document.querySelectorAll('#daily-hs-scope-bar .scope-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    loadDailyHighscores();
 }
 
 function onDailyDateChange() {
