@@ -184,10 +184,21 @@ body {
         .btn:active { transform: translateY(4px); box-shadow: none; }
         .btn-solo { background: #e58e26; }
         .btn-daily { background: #1e90ff; }
+        .btn-daily-list { background: #7158e2; }
         .btn-multi { background: #3c6382; }
         .btn-high { background: #6a89cc; }
         .btn-rules { background: #b8e994; color: #0a3d62; }
         .btn-back { background: #555; margin-top: 10px; font-size: 1rem; padding: 12px;}
+
+        .menu-section-label {
+            text-align: center;
+            text-transform: uppercase;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #8c9aa8;
+            margin: 8px 0 12px 0;
+        }
 
         /* --- CATEGORIE KNOPPEN --- */
         .categories-grid {
@@ -423,11 +434,18 @@ body {
 <div id="start-screen">
     <div class="menu-card">
         <h2 style="margin: 0 0 20px 0; color: #fff;">START GAME</h2>
-        <button class="btn btn-solo" onclick="startSoloGame()">
-            <span>👤</span> <span id="txt-solo">Solo Run</span>
-        </button>
+
+        <div class="menu-section-label" id="txt-section-daily">Daily</div>
         <button class="btn btn-daily" onclick="startDailyMode()">
             <span>📅</span> <span id="txt-daily">Daily</span>
+        </button>
+        <button class="btn btn-daily-list" onclick="openDailyHighscores()">
+            <span>🏆</span> <span id="txt-daily-rank">Daily Ranglijst</span>
+        </button>
+
+        <div class="menu-section-label" id="txt-section-regular">Regular</div>
+        <button class="btn btn-solo" onclick="startSoloGame()">
+            <span>👤</span> <span id="txt-solo">Solo Run</span>
         </button>
         <button class="btn btn-multi" onclick="showLobby()">
             <span>⚔️</span> <span id="txt-multi">1 vs 1 Duel</span>
@@ -435,6 +453,7 @@ body {
         <button class="btn btn-high" onclick="openHighscores()">
             <span>🏆</span> <span id="txt-high">Highscores</span>
         </button>
+
         <button class="btn btn-rules" onclick="openRules()">
             <span>ℹ️</span> <span id="txt-rules">Spelregels</span>
         </button>
@@ -547,6 +566,7 @@ body {
             Dat was fout!
         </p>
         <div class="score-pill" style="font-size:2.5rem; margin-bottom:20px;">Score: <span id="final-score">0</span></div>
+        <button id="btn-share-result" class="btn btn-multi" onclick="shareGameResultWhatsapp()" style="font-size:1rem;">📱 Deel op WhatsApp</button>
         <button class="btn btn-solo" onclick="resetToHome()">Opnieuw Spelen</button>
     </div>
 </div>
@@ -554,13 +574,8 @@ body {
 <div id="highscores-modal" class="modal">
     <div class="modal-content" style="max-width: 450px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h2 style="margin:0; color:var(--primary);">Highscores</h2>
+            <h2 id="txt-high-title" style="margin:0; color:var(--primary);">Highscores</h2>
             <span style="font-size:2rem; cursor:pointer;" onclick="document.getElementById('highscores-modal').style.display='none'">&times;</span>
-        </div>
-
-        <div class="scope-bar" id="hs-mode-bar">
-            <button class="mode-btn-hs active" onclick="switchHighscoreMode('regular', this)"><span id="txt-hs-regular">🏆 Normaal</span></button>
-            <button class="mode-btn-hs" onclick="switchHighscoreMode('daily', this)"><span id="txt-hs-daily">📅 Daily</span></button>
         </div>
 
         <div class="scope-bar" id="hs-scope-bar">
@@ -574,6 +589,26 @@ body {
         </div>
 
         <div id="hs-list" style="max-height: 300px; overflow-y: auto;">Laden...</div>
+    </div>
+</div>
+
+<div id="daily-highscores-modal" class="modal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h2 id="txt-daily-high-title" style="margin:0; color:var(--secondary);">Daily Ranglijst</h2>
+            <span style="font-size:2rem; cursor:pointer;" onclick="document.getElementById('daily-highscores-modal').style.display='none'">&times;</span>
+        </div>
+
+        <div class="scope-bar" id="daily-hs-scope-bar">
+            <button class="scope-btn active" onclick="switchDailyScope('global', this)">🌎 Iedereen</button>
+            <button class="scope-btn" onclick="switchDailyScope('personal', this)">👤 Ik</button>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+            <select id="daily-date-select" onchange="onDailyDateChange()" style="width:100%; padding:10px; border-radius:10px; background: transparent; color:#fff; border:1px solid rgba(255,255,255,0.2); font-weight:600;"></select>
+        </div>
+
+        <div id="daily-hs-list" style="max-height: 300px; overflow-y: auto;">Laden...</div>
     </div>
 </div>
 
@@ -687,10 +722,15 @@ const translations = {
     nl: {
         subtitle: "Emoji's kennen we allemaal!<br>Maar onder welke categorie ze vallen bij WhatsApp?<br>Djeez, best moeilijk!",
         start: "START SPEL",
+        sectionDaily: "Daily",
+        sectionRegular: "Regular",
         solo: "Solo Run",
         daily: "Daily",
+        dailyRank: "Daily Ranglijst",
         multi: "1 vs 1 Duel",
         high: "Highscores",
+        highTitle: "Highscores",
+        dailyHighTitle: "Daily Ranglijst",
         hsRegular: "🏆 Normaal",
         hsDaily: "📅 Daily",
         rules: "Spelregels",
@@ -710,6 +750,7 @@ const translations = {
         waitingOpp: "Wachten op tegenstander...",
         shareLink: "Stuur deze link naar je vriend:",
         shareWA: "📱 Deel via WhatsApp",
+        shareResultBtn: "📱 Deel op WhatsApp",
         copyLink: "📋 Kopieer Link",
         back: "Terug",
         score: "Score:",
@@ -720,11 +761,14 @@ const translations = {
         win: "JIJ WINT! 🎉",
         lose: "VERLOREN... {name} wint.",
         linkCopied: "Link gekopieerd!",
+        resultShared: "Resultaat klaar voor WhatsApp.",
         waText: "Ik daag je uit voor een potje Emodjeez! 🐱🚀\nWie kent de emoji's het best?\nKlik hier: ",
         dailyAlreadyPlayed: "Je hebt de Daily van vandaag al gespeeld. Score: {score}",
         dailyNoRetry: "Je hebt de Daily van vandaag al gespeeld.",
         dailyCompletedTitle: "DAILY VOLTOOID!",
         dailyCompletedText: "Perfect gespeeld! Je hebt alle Daily emoji's gehad.",
+        dailyToday: "Vandaag",
+        dailyYesterday: "Gisteren",
         cat1: "Smileys en mensen",
         cat2: "Dieren en natuur",
         cat3: "Eten en drinken",
@@ -736,10 +780,15 @@ const translations = {
     en: {
         subtitle: "We all know emojis!<br>But which WhatsApp category do they belong to?<br>Geez, quite difficult!",
         start: "START GAME",
+        sectionDaily: "Daily",
+        sectionRegular: "Regular",
         solo: "Solo Run",
         daily: "Daily",
+        dailyRank: "Daily Leaderboard",
         multi: "1 vs 1 Duel",
         high: "Highscores",
+        highTitle: "Highscores",
+        dailyHighTitle: "Daily Leaderboard",
         hsRegular: "🏆 Regular",
         hsDaily: "📅 Daily",
         rules: "Rules",
@@ -759,6 +808,7 @@ const translations = {
         waitingOpp: "Waiting for opponent...",
         shareLink: "Send this link to your friend:",
         shareWA: "📱 Share via WhatsApp",
+        shareResultBtn: "📱 Share on WhatsApp",
         copyLink: "📋 Copy Link",
         back: "Back",
         score: "Score:",
@@ -769,11 +819,14 @@ const translations = {
         win: "YOU WIN! 🎉",
         lose: "DEFEAT... {name} wins.",
         linkCopied: "Link copied!",
+        resultShared: "Result ready for WhatsApp.",
         waText: "I challenge you to a game of Emodjeez! 🐱🚀\nWho knows the emojis best?\nClick here: ",
         dailyAlreadyPlayed: "You already played today's Daily. Score: {score}",
         dailyNoRetry: "You already played today's Daily.",
         dailyCompletedTitle: "DAILY COMPLETED!",
         dailyCompletedText: "Perfect run! You completed all Daily emojis.",
+        dailyToday: "Today",
+        dailyYesterday: "Yesterday",
         cat1: "Smileys & People",
         cat2: "Animals & Nature",
         cat3: "Food & Drink",
@@ -785,10 +838,15 @@ const translations = {
     de: {
         subtitle: "Emojis kennen wir alle!<br>Aber in welche WhatsApp-Kategorie fallen sie?<br>Djeez, ganz schön schwierig!",
         start: "SPIEL STARTEN",
+        sectionDaily: "Daily",
+        sectionRegular: "Regular",
         solo: "Solo-Lauf",
         daily: "Daily",
+        dailyRank: "Daily Rangliste",
         multi: "1 gegen 1 Duell",
         high: "Bestenlisten",
+        highTitle: "Bestenlisten",
+        dailyHighTitle: "Daily Rangliste",
         hsRegular: "🏆 Normal",
         hsDaily: "📅 Daily",
         rules: "Spielregeln",
@@ -808,6 +866,7 @@ const translations = {
         waitingOpp: "Warten auf Gegner...",
         shareLink: "Sende diesen Link an deinen Freund:",
         shareWA: "📱 Via WhatsApp teilen",
+        shareResultBtn: "📱 Auf WhatsApp teilen",
         copyLink: "📋 Link kopieren",
         back: "Zurück",
         score: "Punktzahl:",
@@ -818,11 +877,14 @@ const translations = {
         win: "DU HAST GEWONNEN! 🎉",
         lose: "VERLOREN... {name} gewinnt.",
         linkCopied: "Link kopiert!",
+        resultShared: "Ergebnis für WhatsApp bereit.",
         waText: "Ich fordere dich zu einer Runde Emodjeez heraus! 🐱🚀\nWer kennt die Emojis am besten?\nHier klicken: ",
         dailyAlreadyPlayed: "Du hast das heutige Daily bereits gespielt. Punktzahl: {score}",
         dailyNoRetry: "Du hast das heutige Daily bereits gespielt.",
         dailyCompletedTitle: "DAILY GESCHAFFT!",
         dailyCompletedText: "Perfekter Lauf! Du hast alle Daily-Emojis abgeschlossen.",
+        dailyToday: "Heute",
+        dailyYesterday: "Gestern",
         cat1: "Smileys & Personen",
         cat2: "Tiere & Natur",
         cat3: "Essen & Trinken",
@@ -874,12 +936,15 @@ function applyLanguage() {
     // Titels & Menu
     document.querySelector('.app-subtitle').innerHTML = t.subtitle;
     document.querySelector('#start-screen h2').innerText = t.start;
+    document.getElementById('txt-section-daily').innerText = t.sectionDaily;
+    document.getElementById('txt-section-regular').innerText = t.sectionRegular;
     document.getElementById('txt-solo').innerText = t.solo;
     document.getElementById('txt-daily').innerText = t.daily;
+    document.getElementById('txt-daily-rank').innerText = t.dailyRank;
     document.getElementById('txt-multi').innerText = t.multi;
     document.getElementById('txt-high').innerText = t.high;
-    document.getElementById('txt-hs-regular').innerText = t.hsRegular;
-    document.getElementById('txt-hs-daily').innerText = t.hsDaily;
+    document.getElementById('txt-high-title').innerText = t.highTitle;
+    document.getElementById('txt-daily-high-title').innerText = t.dailyHighTitle;
     document.getElementById('txt-rules').innerText = t.rules;
     
     // In-game & Modals algemeen
@@ -902,6 +967,7 @@ function applyLanguage() {
     document.querySelector('#lobby-share .btn[onclick="copyLink()"]').innerText = t.copyLink;
     document.querySelector('#lobby-ui .btn-back').innerText = t.back;
 	document.querySelector('#game-over-modal .btn-solo').innerText = t.playAgain;
+	document.getElementById('btn-share-result').innerText = t.shareResultBtn;
 	
     
     // Game Header
@@ -928,7 +994,56 @@ let dailyDateKey = null;
 let dailyEmojiSequence = [];
 let dailyEmojiIndex = 0;
 let dailyEntryRef = null;
+let runCorrectEmojis = [];
+let lastResultContext = null;
 const DAILY_EMOJI_COUNT = 30;
+const DAILY_NUMBER_BASE_DATE_KEY = '2026-02-28';
+
+function parseDateKeyAsUtc(dateKey) {
+    if (!dateKey) return null;
+    const [year, month, day] = dateKey.split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(Date.UTC(year, month - 1, day));
+}
+
+function getDailyNumber(dateKey) {
+    const baseDate = parseDateKeyAsUtc(DAILY_NUMBER_BASE_DATE_KEY);
+    const targetDate = parseDateKeyAsUtc(dateKey);
+    if (!baseDate || !targetDate) return 1;
+    const diffDays = Math.floor((targetDate.getTime() - baseDate.getTime()) / 86400000);
+    return Math.max(1, diffDays + 1);
+}
+
+function setLastResultContext(mode, score) {
+    lastResultContext = {
+        mode,
+        score: Number(score || 0),
+        emojis: [...runCorrectEmojis],
+        dailyDateKey: isDailyMode ? dailyDateKey : null
+    };
+}
+
+function shareGameResultWhatsapp() {
+    if (!lastResultContext) return;
+
+    const lines = [];
+
+    if (lastResultContext.mode === 'daily' && lastResultContext.dailyDateKey) {
+        lines.push(`Daily #${getDailyNumber(lastResultContext.dailyDateKey)}`);
+    }
+
+    lines.push('<Emodjeez.net>');
+    lines.push(`Mijn Score: ${lastResultContext.score}`);
+
+    if (lastResultContext.emojis.length > 0) {
+        lines.push(lastResultContext.emojis.join(' '));
+    }
+
+    lines.push('#emodjeez');
+
+    const text = lines.join('\n');
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+}
 
 // --- INITIALIZATION ---
 window.onload = () => {
@@ -1042,7 +1157,7 @@ async function startDailyMode() {
             ? t.dailyAlreadyPlayed.replace('{score}', score)
             : t.dailyNoRetry;
         alert(msg);
-        openHighscores('daily');
+        openDailyHighscores();
         return;
     }
 
@@ -1067,6 +1182,7 @@ async function startDailyMode() {
     isDailyMode = true;
     gameActive = true;
     currentScore = 0;
+    runCorrectEmojis = [];
     dailyEmojiIndex = 0;
     dailyEmojiSequence = buildDailyEmojiSequence(dailyDateKey);
 
@@ -1083,6 +1199,7 @@ function startSoloGame() {
     isDailyMode = false;
     currentScore = 0;
     gameActive = true;
+    runCorrectEmojis = [];
 
     prepareSinglePlayerScreen("SOLO RUN");
     
@@ -1145,6 +1262,7 @@ function finishDailyCompleted() {
     document.getElementById('go-emoji').innerText = "🏆";
     document.getElementById('go-message').innerText = t.dailyCompletedText;
     document.getElementById('final-score').innerText = currentScore;
+    setLastResultContext('daily', currentScore);
     document.getElementById('game-over-modal').style.display = 'flex';
 
     finalizeDailyResult(currentScore);
@@ -1160,6 +1278,7 @@ async function handleCategoryClick(catId) {
     if (isMultiplayer) {
         const correct = (catId === currentEmojiData.c);
         if(correct) {
+            runCorrectEmojis.push(currentEmojiData.e);
             card.classList.add('correct-pulse');
             icon.classList.add('show-feedback');
         } else {
@@ -1173,6 +1292,7 @@ async function handleCategoryClick(catId) {
 
     if (isDailyMode) {
         if (catId === currentEmojiData.c) {
+            runCorrectEmojis.push(currentEmojiData.e);
             currentScore++;
             dailyEmojiIndex++;
             updateScoreUI();
@@ -1192,6 +1312,7 @@ async function handleCategoryClick(catId) {
 
     // Solo Logic
     if (catId === currentEmojiData.c) {
+        runCorrectEmojis.push(currentEmojiData.e);
         currentScore++;
         updateScoreUI();
         card.classList.add('correct-pulse');
@@ -1223,6 +1344,7 @@ function gameOverSolo(clickedCat) {
     `;
     
     document.getElementById('final-score').innerText = currentScore;
+    setLastResultContext(isDailyMode ? 'daily' : 'solo', currentScore);
     document.getElementById('game-over-modal').style.display = 'flex';
 
     if (isDailyMode) {
@@ -1257,6 +1379,7 @@ async function createOnlineGame() {
     const startEmojiIdx = Math.floor(Math.random() * EMOJI_DB.length);
 
     try {
+        runCorrectEmojis = [];
         const docRef = await addDoc(collection(window.db, "emodjeez_games"), {
             hostId: window.currentUser.uid,
             hostName: myUsername,
@@ -1305,6 +1428,7 @@ window.checkAndJoin = async function() {
     gameId = window.pendingInviteId;
     window.pendingInviteId = null;
     playerRole = 'guest';
+    runCorrectEmojis = [];
 
     const { doc, updateDoc } = window.firebaseFuncs;
     await updateDoc(doc(window.db, "emodjeez_games", gameId), {
@@ -1372,6 +1496,7 @@ function handleGameState(data) {
         document.getElementById('go-emoji').innerText = emoji;
         document.getElementById('go-message').innerText = msg;
         document.getElementById('final-score').innerText = myScore;
+        setLastResultContext('duel', myScore);
         document.getElementById('game-over-modal').style.display = 'flex';
         return;
     }
@@ -1536,38 +1661,19 @@ async function saveHighscore(score, mode) {
 
 let hsScope = 'global';
 let hsTab = 'today';
-let hsMode = 'regular';
+let dailyHsScope = 'global';
+let dailyHsDateKey = getUtcDateKey();
+let dailyAvailableDateKeys = [];
 
-function openHighscores(mode = 'regular') {
+function openHighscores() {
     document.getElementById('highscores-modal').style.display = 'flex';
-    hsMode = mode;
-    updateHighscoreUiForMode();
     loadHighscores();
 }
 
 function openDailyHighscores() {
-    openHighscores('daily');
-}
-
-function switchHighscoreMode(mode, btn) {
-    hsMode = mode;
-    document.querySelectorAll('.mode-btn-hs').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-    updateHighscoreUiForMode();
-    loadHighscores();
-}
-
-function updateHighscoreUiForMode() {
-    const modeButtons = document.querySelectorAll('.mode-btn-hs');
-    if (modeButtons.length >= 2) {
-        modeButtons[0].classList.toggle('active', hsMode === 'regular');
-        modeButtons[1].classList.toggle('active', hsMode === 'daily');
-    }
-
-    const tabBar = document.getElementById('hs-tab-bar');
-    if (tabBar) {
-        tabBar.style.display = hsMode === 'daily' ? 'none' : 'flex';
-    }
+    document.getElementById('daily-highscores-modal').style.display = 'flex';
+    loadDailyDateOptions();
+    loadDailyHighscores();
 }
 
 function switchScope(scope, btn) {
@@ -1585,11 +1691,6 @@ function switchTab(tab, btn) {
 }
 
 async function loadHighscores() {
-    if (hsMode === 'daily') {
-        await loadDailyHighscores();
-        return;
-    }
-
     const listEl = document.getElementById('hs-list');
     listEl.innerHTML = "Laden...";
     
@@ -1708,11 +1809,10 @@ async function loadHighscores() {
 }
 
 async function loadDailyHighscores() {
-    const listEl = document.getElementById('hs-list');
+    const listEl = document.getElementById('daily-hs-list');
     listEl.innerHTML = "Daily laden...";
 
     const { collection, query, limit, getDocs } = window.firebaseFuncs;
-    const todayKey = getUtcDateKey();
 
     function getDailyDate(item) {
         if (item.playedAt && typeof item.playedAt.toDate === 'function') {
@@ -1728,14 +1828,14 @@ async function loadDailyHighscores() {
     }
 
     try {
-        const ref = collection(window.db, "emodjeez_daily_results", todayKey, "entries");
+        const ref = collection(window.db, "emodjeez_daily_results", dailyHsDateKey, "entries");
         const dailyQuery = query(ref, limit(500));
         const snapshot = await getDocs(dailyQuery);
 
         let data = snapshot.docs.map(d => d.data());
         data = data.filter(item => item.finished !== false);
 
-        if (hsScope === 'personal') {
+        if (dailyHsScope === 'personal') {
             if (window.currentUser?.uid) {
                 data = data.filter(item => item.uid === window.currentUser.uid);
             } else {
@@ -1753,7 +1853,7 @@ async function loadDailyHighscores() {
         });
 
         if (data.length === 0) {
-            listEl.innerHTML = "<div style='padding:20px; color:#aaa;'>Nog geen Daily scores voor vandaag.</div>";
+            listEl.innerHTML = "<div style='padding:20px; color:#aaa;'>Nog geen Daily scores gevonden voor deze dag.</div>";
             return;
         }
 
@@ -1772,6 +1872,92 @@ async function loadDailyHighscores() {
         console.error(e);
         listEl.innerHTML = "Fout bij laden.";
     }
+}
+
+function switchDailyScope(scope, btn) {
+    dailyHsScope = scope;
+    document.querySelectorAll('#daily-hs-scope-bar .scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadDailyHighscores();
+}
+
+function onDailyDateChange() {
+    const selectEl = document.getElementById('daily-date-select');
+    if (!selectEl) return;
+    dailyHsDateKey = selectEl.value;
+    loadDailyHighscores();
+}
+
+function formatDateKeyForDisplay(dateKey) {
+    const [year, month, day] = dateKey.split('-');
+    if (!year || !month || !day) return dateKey;
+    return `${day}-${month}-${year}`;
+}
+
+function getRelativeDailyLabel(dateKey) {
+    const t = translations[currentLang] || translations.en;
+    const todayKey = getUtcDateKey();
+
+    if (dateKey === todayKey) return t.dailyToday || 'Today';
+
+    const today = new Date(`${todayKey}T00:00:00Z`);
+    const target = new Date(`${dateKey}T00:00:00Z`);
+    const diffDays = Math.round((today.getTime() - target.getTime()) / 86400000);
+    if (diffDays === 1) return t.dailyYesterday || 'Yesterday';
+
+    return formatDateKeyForDisplay(dateKey);
+}
+
+function buildDailyDateOptionLabel(dateKey, index, total) {
+    const dayNumber = total - index;
+    return `${getRelativeDailyLabel(dateKey)} - #${dayNumber}`;
+}
+
+async function loadDailyDateOptions() {
+    const selectEl = document.getElementById('daily-date-select');
+    if (!selectEl) return;
+
+    selectEl.innerHTML = '<option>Laden...</option>';
+
+    const { collection, query, limit, getDocs } = window.firebaseFuncs;
+
+    const today = new Date();
+    const candidates = [];
+    for (let i = 0; i < 60; i++) {
+        const date = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+        date.setUTCDate(date.getUTCDate() - i);
+        candidates.push(getUtcDateKey(date));
+    }
+
+    const checks = await Promise.all(candidates.map(async (dateKey) => {
+        try {
+            const ref = collection(window.db, "emodjeez_daily_results", dateKey, "entries");
+            const snapshot = await getDocs(query(ref, limit(1)));
+            return snapshot.empty ? null : dateKey;
+        } catch (e) {
+            console.error('Daily date check error', dateKey, e);
+            return null;
+        }
+    }));
+
+    dailyAvailableDateKeys = checks.filter(Boolean);
+
+    if (dailyAvailableDateKeys.length === 0) {
+        dailyAvailableDateKeys = [getUtcDateKey()];
+    }
+
+    if (!dailyAvailableDateKeys.includes(dailyHsDateKey)) {
+        dailyHsDateKey = dailyAvailableDateKeys[0];
+    }
+
+    const total = dailyAvailableDateKeys.length;
+    selectEl.innerHTML = dailyAvailableDateKeys
+        .map((dateKey, idx) => {
+            const selected = dateKey === dailyHsDateKey ? 'selected' : '';
+            const label = buildDailyDateOptionLabel(dateKey, idx, total);
+            return `<option value="${dateKey}" ${selected}>${label}</option>`;
+        })
+        .join('');
 }
 
 // --- INSTALLATIE PROMPT LOGICA ---
