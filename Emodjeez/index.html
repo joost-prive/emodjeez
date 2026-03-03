@@ -20,7 +20,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, getDoc, query, orderBy, limit, getDocs, where, deleteDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, getDoc, query, orderBy, limit, getDocs, where, deleteDoc, setDoc, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
         // JOUW FIREBASE CONFIG
@@ -37,7 +37,7 @@
         window.db = getFirestore(app);
         window.auth = getAuth(app);
         
-        window.firebaseFuncs = { collection, addDoc, doc, onSnapshot, updateDoc, getDoc, query, orderBy, limit, getDocs, where, deleteDoc, setDoc, serverTimestamp };
+        window.firebaseFuncs = { collection, addDoc, doc, onSnapshot, updateDoc, getDoc, query, orderBy, limit, getDocs, where, deleteDoc, setDoc, serverTimestamp, runTransaction };
         
         signInAnonymously(window.auth).then((u) => {
             console.log("Ingelogd als:", u.user.uid);
@@ -1571,7 +1571,7 @@ function handleGameState(data) {
         statusDiv.innerText = trans.statusWait;
     } else if (myMove && oppMove) {
         statusDiv.innerText = trans.statusEval;
-        if (isHost) evaluateRound(data);
+        evaluateRound();
     } else {
         statusDiv.innerText = "";
     }
@@ -1606,56 +1606,48 @@ function shareWhatsapp() {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 }
 
-
-async function handleMultiplayerMove(catId) {
-    if (!gameActive) return;
-    
-    // Check if move already made
-    const correct = (catId === currentEmojiData.c);
-    
-    const { updateDoc, doc } = window.firebaseFuncs;
-    const field = playerRole === 'host' ? 'hostMove' : 'guestMove';
-    
-    // Send move
-    await updateDoc(doc(window.db, "emodjeez_games", gameId), {
-        [field]: { correct: correct, timestamp: Date.now() }
-    });
-    
-    // Lock UI temporarily
-    document.getElementById('status-message').innerText = "Antwoord verzonden...";
-}
-
-async function evaluateRound(data) {
-    if (playerRole !== 'host' || !data.hostMove || !data.guestMove) return;
-
-    const { updateDoc, doc } = window.firebaseFuncs;
+async function evaluateRound() {
+    const { runTransaction, doc } = window.firebaseFuncs;
     const gameRef = doc(window.db, "emodjeez_games", gameId);
-    
-    const hCorrect = data.hostMove.correct;
-    const gCorrect = data.guestMove.correct;
 
-    if (hCorrect && gCorrect) {
-        const nextIdx = Math.floor(Math.random() * EMOJI_DB.length);
-        // We updaten eerst de moves naar null om de UI "vrij" te maken
-        await updateDoc(gameRef, {
-            hostMove: null,
-            guestMove: null,
-            currentEmojiIdx: nextIdx,
-            hostScore: (data.hostScore || 0) + 1,
-            guestScore: (data.guestScore || 0) + 1,
-            round: (data.round || 1) + 1
-        });
-    } else {
-        let winner = 'draw';
-        if (hCorrect && !gCorrect) winner = data.hostId;
-        if (!hCorrect && gCorrect) winner = data.guestId;
+    try {
+        await runTransaction(window.db, async (transaction) => {
+            const snapshot = await transaction.get(gameRef);
+            if (!snapshot.exists()) return;
 
-        await updateDoc(gameRef, {
-            status: 'finished',
-            winner: winner,
-            hostScore: hCorrect ? (data.hostScore || 0) + 1 : (data.hostScore || 0),
-            guestScore: gCorrect ? (data.guestScore || 0) + 1 : (data.guestScore || 0)
+            const latest = snapshot.data();
+            if (latest.status !== 'playing') return;
+            if (!latest.hostMove || !latest.guestMove) return;
+
+            const hCorrect = !!latest.hostMove.correct;
+            const gCorrect = !!latest.guestMove.correct;
+
+            if (hCorrect && gCorrect) {
+                const nextIdx = Math.floor(Math.random() * EMOJI_DB.length);
+                transaction.update(gameRef, {
+                    hostMove: null,
+                    guestMove: null,
+                    currentEmojiIdx: nextIdx,
+                    hostScore: (latest.hostScore || 0) + 1,
+                    guestScore: (latest.guestScore || 0) + 1,
+                    round: (latest.round || 1) + 1
+                });
+                return;
+            }
+
+            let winner = 'draw';
+            if (hCorrect && !gCorrect) winner = latest.hostId;
+            if (!hCorrect && gCorrect) winner = latest.guestId;
+
+            transaction.update(gameRef, {
+                status: 'finished',
+                winner: winner,
+                hostScore: hCorrect ? (latest.hostScore || 0) + 1 : (latest.hostScore || 0),
+                guestScore: gCorrect ? (latest.guestScore || 0) + 1 : (latest.guestScore || 0)
+            });
         });
+    } catch (e) {
+        console.error("Duel round evaluate error", e);
     }
 }
 
@@ -1675,21 +1667,6 @@ function resetToHome() {
     
     window.history.replaceState({}, document.title, newUrl.toString());
     window.location.reload();
-}
-
-
-
-// --- SHARING ---
-function copyLink() {
-    const url = window.location.origin + window.location.pathname + "?game=" + gameId;
-    navigator.clipboard.writeText(url);
-    alert("Link gekopieerd!");
-}
-
-function shareWhatsapp() {
-    const url = window.location.origin + window.location.pathname + "?game=" + gameId;
-    const text = `Ik daag je uit voor een potje Emodjeez! 🐱🚀\nWie kent de emoji's het best?\nKlik hier: ${url}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 }
 
 // --- HIGHSCORES ---
