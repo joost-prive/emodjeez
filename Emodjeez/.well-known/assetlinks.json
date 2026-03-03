@@ -1,0 +1,9 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "net.emodjeez.twa",
+    "sha256_cert_fingerprints":
+    ["5D:AE:0A:6A:C9:81:6B:26:65:F1:82:97:D9:52:32:9A:0E:28:60:5C:8F:D6:6F:04:AB:6E:4D:61:49:A8:D0:AC"]
+  }
+}]

@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+	
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+
+<meta name="description" content="Emodjeez: De ultieme emoji quiz! Raad in welke categorie WhatsApp emoji's vallen en daag je vrienden uit in de 1 vs 1 modus.">	
+	
+ <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Emodjeez - The Emoji Quiz</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@48,400,0,0" />
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e3799">
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, getDoc, query, orderBy, limit, getDocs, where, deleteDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+
+        // JOUW FIREBASE CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-WOchuDhnBfUetqGIWWX9JBtCdHgNrkU",
+            authDomain: "emodjeez.firebaseapp.com",
+            projectId: "emodjeez",
+            storageBucket: "emodjeez.firebasestorage.app",
+            messagingSenderId: "258074512920",
+            appId: "1:258074512920:web:f0dbf787a4bbcd61d3fd6d"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        window.db = getFirestore(app);
+        window.auth = getAuth(app);
+        
+        window.firebaseFuncs = { collection, addDoc, doc, onSnapshot, updateDoc, getDoc, query, orderBy, limit, getDocs, where, deleteDoc, setDoc, serverTimestamp };
+        
+        signInAnonymously(window.auth).then((u) => {
+            console.log("Ingelogd als:", u.user.uid);
+            window.currentUser = u.user;
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const pendingGameId = urlParams.get('game');
+
+            if (pendingGameId) {
+                window.pendingInviteId = pendingGameId;
+                if (typeof window.checkAndJoin === 'function') {
+                    window.checkAndJoin();
+                }
+            }
+        }).catch(e => console.error(e));
+    </script>
+
+    <style>
+        :root {
+            --bg-dark: #2c1e3e;
+            --bg-gradient: linear-gradient(135deg, #1e3799 0%, #0c2461 100%);
+            --primary: #FFD700; /* Emoji Yellow */
+            --secondary: #00d2d3;
+            --accent: #ff6b6b;
+            --surface: rgba(255, 255, 255, 0.1);
+            --surface-light: rgba(255, 255, 255, 0.2);
+            --text-main: #ffffff;
+            --shadow: 0 8px 20px rgba(0,0,0,0.4);
+            
+            /* Category Colors */
+            --cat-1: #fad390; 
+            --cat-2: #78e08f; 
+            --cat-3: #e55039; 
+            --cat-4: #4a69bd; 
+            --cat-5: #60a3bc; 
+            --cat-6: #f6b93b; 
+            --cat-7: #82ccdd; 
+        }
+		
+		/* Voorkom browser-specifiek gedrag voor een native app-gevoel */
+* {
+    /* Schakel de blauwe highlight uit die verschijnt bij het tikken op mobiel */
+    -webkit-tap-highlight-color: transparent;
+    
+    /* Voorkom dat de gebruiker tekst of plaatjes kan selecteren/kopiëren */
+    -webkit-user-select: none;
+    user-select: none;
+    
+    /* Voorkom het standaard context-menu (rechtermuisknop/lang indrukken) op mobiel */
+    -webkit-touch-callout: none;
+}
+
+/* Zorg dat de naam-input wel nog steeds tekst accepteert */
+input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* Voorkom dat de browser de pagina probeert te verversen bij omlaag swipen (pull-to-refresh) */
+body {
+    overscroll-behavior-y: contain;
+}
+		
+
+        body {
+            font-family: 'Fredoka', 'Roboto', sans-serif;
+			background-color: #2c1e3e; /* Voeg deze specifieke kleur toe als fallback */			
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            text-align: center;
+            margin: 0; padding: 10px;
+            touch-action: manipulation;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* --- Header & Logo --- */
+        .brand-header {
+            margin-top: 20px; 
+            margin-bottom: -10px; 
+            animation: bounceIn 0.8s;
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .main-logo-img {
+            width: 350px; 
+            max-width: 100%; 
+            height: auto;
+            filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.3)) drop-shadow(0 0 60px rgba(30, 55, 153, 0.5));
+            transition: transform 0.3s, filter 0.3s;
+        }
+        .main-logo-img:hover {
+            transform: scale(1.02) rotate(2deg);
+            filter: drop-shadow(0 0 40px rgba(255, 215, 0, 0.5)) drop-shadow(0 0 80px rgba(30, 55, 153, 0.7));
+        }
+        
+        /* NIEUW: Ondertitel in Menu */
+.app-subtitle {
+    color: #a4b0be;
+    font-size: 0.95rem; /* Iets kleiner om het passend te maken */
+    font-weight: 600;
+    margin-top: 5px;
+    margin-bottom: 25px;
+    max-width: 100%; /* Breedte naar 100% voor meer ruimte */
+    line-height: 1.5;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    padding: 0 10px; /* Een beetje veilige marge aan de zijkanten */
+}
+
+        /* --- Screens --- */
+        #start-screen, #game-screen, #lobby-ui { 
+            width: 100%; max-width: 500px; display: flex; flex-direction: column; align-items: center; gap: 15px;
+            margin-top: 20px; 
+        }
+
+        /* --- Menu Card --- */
+        .menu-card {
+            background: var(--surface); 
+            padding: 40px 20px 30px 20px; 
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: var(--shadow); 
+            width: 90%;
+            backdrop-filter: blur(10px);
+            animation: slideUp 0.5s ease-out;
+            position: relative; 
+            z-index: 5; 
+        }
+
+        /* --- Buttons --- */
+        .btn {
+            padding: 18px 20px; border: none; border-radius: 15px;
+            font-family: 'Fredoka', sans-serif; font-size: 1.2rem; font-weight: 600;
+            cursor: pointer; transition: transform 0.1s, filter 0.2s;
+            width: 100%; box-shadow: 0 6px 0 rgba(0,0,0,0.2);
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            color: #fff; text-transform: uppercase; margin-bottom: 15px;
+            text-shadow: 0 2px 0 rgba(0,0,0,0.2);
+        }
+        .btn:active { transform: translateY(4px); box-shadow: none; }
+        .btn-solo { background: #e58e26; }
+        .btn-multi { background: #3c6382; }
+        .btn-high { background: #6a89cc; }
+        .btn-rules { background: #b8e994; color: #0a3d62; }
+        .btn-back { background: #555; margin-top: 10px; font-size: 1rem; padding: 12px;}
+
+        /* --- CATEGORIE KNOPPEN --- */
+        .categories-grid {
+            display: flex;
+            flex-wrap: wrap; 
+            justify-content: center; 
+            gap: 10px; 
+            width: 100%;
+            max-width: 480px; 
+            margin-top: 10px;
+        }
+
+        .cat-btn-wrapper {
+            width: calc(25% - 8px); 
+            aspect-ratio: 1 / 1;
+        }
+
+        .btn-cat { 
+            width: 100%; height: 100%; 
+            background: rgba(255,255,255,0.08); 
+            border-radius: 20px; 
+            border: 1px solid rgba(255,255,255,0.1); 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s ease;
+            color: rgba(255,255,255,0.6); padding: 2px;
+            position: relative; overflow: hidden;
+        }
+
+        .btn-cat .material-symbols-rounded {
+            font-size: 2.2rem; margin-bottom: 4px;
+            transition: color 0.2s, text-shadow 0.2s;
+        }
+
+        .btn-cat span.label-text { 
+            font-size: 0.55rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.5px; opacity: 0.8; line-height: 1.1; 
+            text-align: center; width: 100%; padding: 0 2px;
+        }
+
+        .btn-cat:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-3px);
+            border-color: rgba(255,255,255,0.5);
+            color: #fff; 
+        }
+        
+        .cat-1:hover .material-symbols-rounded { color: var(--cat-1); text-shadow: 0 0 15px var(--cat-1); }
+        .cat-2:hover .material-symbols-rounded { color: var(--cat-2); text-shadow: 0 0 15px var(--cat-2); }
+        .cat-3:hover .material-symbols-rounded { color: var(--cat-3); text-shadow: 0 0 15px var(--cat-3); }
+        .cat-4:hover .material-symbols-rounded { color: var(--cat-4); text-shadow: 0 0 15px var(--cat-4); }
+        .cat-5:hover .material-symbols-rounded { color: var(--cat-5); text-shadow: 0 0 15px var(--cat-5); }
+        .cat-6:hover .material-symbols-rounded { color: var(--cat-6); text-shadow: 0 0 15px var(--cat-6); }
+        .cat-7:hover .material-symbols-rounded { color: var(--cat-7); text-shadow: 0 0 15px var(--cat-7); }
+        .btn-cat:active { transform: scale(0.95); }
+
+        /* --- Game Area --- */
+        .game-header-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            width: 100%; background: rgba(0,0,0,0.3); padding: 10px 20px;
+            border-radius: 50px; margin-bottom: 20px; box-sizing: border-box;
+        }
+        .score-pill { font-size: 1.3rem; font-weight: bold; color: var(--primary); text-shadow: 0 2px 0 #000; }
+        
+        /* NIEUW: Instructie in game */
+        .game-instruction {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            margin-top: -5px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .emoji-display-card {
+            width: 150px; height: 150px;
+            background: #fff;
+            border-radius: 40px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 6rem;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+            margin-bottom: 25px;
+            border: 6px solid rgba(255,255,255,0.8);
+            position: relative;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* HET VINKJE STYLE */
+        #feedback-icon {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0.5);
+            font-size: 8rem;
+            color: #2ecc71; /* Mooi felgroen */
+            text-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 10;
+        }
+
+        .show-feedback {
+            opacity: 1 !important;
+            transform: translate(-50%, -50%) scale(1) !important;
+        }
+
+        /* --- Modals --- */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.9); z-index: 100;
+            backdrop-filter: blur(8px); align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: #2f3640; padding: 30px; border-radius: 20px;
+            width: 90%; max-width: 400px; text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            animation: slideUp 0.3s;
+            max-height: 80vh; overflow-y: auto;
+        }
+        .profile-btn {
+            position: absolute; top: 15px; right: 15px;
+            background: rgba(0,0,0,0.4); padding: 5px 15px;
+            border-radius: 20px; cursor: pointer; font-size: 0.9rem;
+            display: flex; align-items: center; gap: 5px; border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* --- Highscore List --- */
+        .hs-row {
+            display: flex; justify-content: space-between; padding: 12px;
+            background: rgba(255,255,255,0.05); margin-bottom: 8px; border-radius: 10px;
+            align-items: center;
+        }
+        .hs-rank { font-weight: bold; width: 30px; color: var(--primary); font-size: 1.1rem; }
+        .hs-name { flex: 1; text-align: left; padding-left: 10px; font-weight: 500;}
+        .hs-score { font-weight: bold; color: #fab1a0;}
+        
+        .scope-bar, .tab-bar { display: flex; gap: 5px; margin-bottom: 15px; justify-content: center; width: 100%; }
+        .scope-btn, .tab-btn {
+            flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.2);
+            color: #ccc; padding: 10px; border-radius: 10px; cursor: pointer; font-weight: 600;
+        }
+        .scope-btn.active, .tab-btn.active { background: var(--secondary); color: #000; border-color: var(--secondary); }
+
+        /* --- Animations --- */
+        @keyframes bounceIn { 0% { opacity: 0; transform: scale(0.3); } 50% { opacity: 1; transform: scale(1.05); } 70% { transform: scale(0.9); } 100% { transform: scale(1); } }
+        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+        
+        .shake { animation: shake 0.4s; border-color: var(--accent) !important; }
+        .correct-pulse { animation: popIn 0.3s; border-color: var(--secondary) !important; box-shadow: 0 0 30px var(--secondary); }
+		
+.lang-selector-v2 {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    z-index: 100;
+    display: flex;
+    gap: 10px;
+}
+
+.lang-flag {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px; /* Iets ronder voor een modern uiterlijk */
+    width: 40px;
+    height: 28px;
+    cursor: pointer;
+    padding: 0;
+    overflow: hidden; /* Zorgt dat de vlag binnen de border blijft */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s, border-color 0.2s;
+}
+
+.lang-flag img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Zorgt dat de vlag de hele knop vult */
+}
+
+.lang-flag:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.lang-flag:active {
+    transform: scale(0.9);
+}
+		
+    </style>
+</head>
+<body>
+
+<div class="lang-selector-v2">
+    <button class="lang-flag" onclick="changeLanguage('nl')" title="Nederlands">
+        <img src="https://flagcdn.com/w40/nl.png" alt="NL">
+    </button>
+    <button class="lang-flag" onclick="changeLanguage('en')" title="English">
+        <img src="https://flagcdn.com/w40/us.png" alt="EN">
+    </button>
+    <button class="lang-flag" onclick="changeLanguage('de')" title="Deutsch">
+        <img src="https://flagcdn.com/w40/de.png" alt="DE">
+    </button>
+</div>
+
+<div class="brand-header">
+ <img src="logo.webp" 
+     alt="Emodjeez Logo" 
+     class="main-logo-img" 
+     width="350" 
+     height="350"
+     fetchpriority="high"
+     decoding="async">   <div class="app-title" style="display:none; font-size: 2rem; font-weight:900; color:#ffcc00;">EMODJEEZ</div> 
+    
+<div class="app-subtitle">
+    Emoji's kennen we allemaal!<br>
+    Maar onder welke categorie ze vallen bij WhatsApp?<br>
+    Djeez, best moeilijk!
+</div>
+</div>
+
+<div class="profile-btn" onclick="openNameChange()">
+    <span>👤</span> <span id="profile-name">Gast</span> <span>✏️</span>
+</div>
+
+<div id="start-screen">
+    <div class="menu-card">
+        <h2 style="margin: 0 0 20px 0; color: #fff;">START GAME</h2>
+        <button class="btn btn-solo" onclick="startSoloGame()">
+            <span>👤</span> <span id="txt-solo">Solo Run</span>
+        </button>
+        <button class="btn btn-multi" onclick="showLobby()">
+            <span>⚔️</span> <span id="txt-multi">1 vs 1 Duel</span>
+        </button>
+        <button class="btn btn-high" onclick="openHighscores()">
+            <span>🏆</span> <span id="txt-high">Highscores</span>
+        </button>
+        <button class="btn btn-rules" onclick="openRules()">
+            <span>ℹ️</span> <span id="txt-rules">Spelregels</span>
+        </button>
+    </div>
+	<div style="margin-top: 30px; font-size: 0.7rem; opacity: 0.5; text-align: center; font-family: sans-serif;">
+        © 2026 Emodjeez - v1.0.0<br>
+        Created by ViaAventura
+    </div>
+</div>
+
+<div id="lobby-ui" style="display:none;">
+    <div class="menu-card">
+        <h3 style="color:var(--secondary);">1 vs 1 Duel</h3>
+        
+        <div id="lobby-start">
+            <p>Speel tegelijk tegen een vriend.<br>Wie het eerst een fout maakt verliest!</p>
+            <button class="btn btn-multi" onclick="createOnlineGame()">Nieuw Spel Starten</button>
+            <div style="margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1);"></div>
+            <p style="font-size:0.9rem; color:#aaa;">Heb je een link ontvangen? Klik daarop om mee te doen.</p>
+        </div>
+
+        <div id="lobby-share" style="display:none;">
+            <div class="emoji-display-card" style="width:80px; height:80px; font-size:2rem; margin: 0 auto 15px auto;">⏳</div>
+            <h3>Wachten op tegenstander...</h3>
+            <p>Stuur deze link naar je vriend:</p>
+            <button class="btn" style="background:#25D366; font-size:1rem;" onclick="shareWhatsapp()">📱 Deel via WhatsApp</button>
+            <button class="btn" style="background:#333; font-size:1rem;" onclick="copyLink()">📋 Kopieer Link</button>
+        </div>
+
+        <button class="btn btn-back" onclick="location.reload()">Terug</button>
+    </div>
+</div>
+
+<div id="game-screen" style="display:none;">
+    
+    <div class="game-header-bar">
+        <div id="game-info-left">Score: <span id="score-val" class="score-pill">0</span></div>
+        <div id="game-mode-label" style="text-transform:uppercase; font-size:0.8rem; font-weight:bold; color:var(--secondary);">SOLO</div>
+        <div id="game-info-right" style="display:none;">VS: <span id="opp-status">...</span></div>
+    </div>
+
+    <div id="status-message" style="height: 20px; color: var(--accent); font-weight: bold; margin-bottom: 5px;"></div>
+
+    <p class="game-instruction">Onder welke WhatsApp categorie valt deze emoji?</p>
+
+    <div class="emoji-display-card" id="main-card">
+        <div id="main-emoji">❓</div>
+        <div id="feedback-icon" class="material-symbols-rounded">check_circle</div>
+    </div>
+
+    <div class="categories-grid">
+        <div class="cat-btn-wrapper">
+            <button class="btn btn-cat cat-1" onclick="handleCategoryClick(1)">
+                <span class="material-symbols-rounded">sentiment_satisfied</span>
+                <span class="label-text">Smileys en mensen</span>
+            </button>
+        </div>
+
+        <div class="cat-btn-wrapper">
+            <button class="btn btn-cat cat-2" onclick="handleCategoryClick(2)">
+                <span class="material-symbols-rounded">emoji_nature</span>
+                <span class="label-text">Dieren en natuur</span>
+            </button>
+        </div>
+
+        <div class="cat-btn-wrapper">
+            <button class="btn btn-cat cat-3" onclick="handleCategoryClick(3)">
+                <span class="material-symbols-rounded">local_cafe</span>
+                <span class="label-text">Eten en drinken</span>
+            </button>
+        </div>
+
+        <div class="cat-btn-wrapper">
+            <button class="btn btn-cat cat-4" onclick="handleCategoryClick(4)">
+                <span class="material-symbols-rounded">sports_basketball</span>
+                <span class="label-text">Activiteiten</span>
+            </button>
+        </div>
+
+        <div class="cat-btn-wrapper">
+            <button class="btn btn-cat cat-5" onclick="handleCategoryClick(5)">
+                <span class="material-symbols-rounded">directions_car</span>
+                <span class="label-text">Reizen en plaatsen</span>
+            </button>
+        </div>
+
+        <div class="cat-btn-wrapper">
+            <button class="btn btn-cat cat-6" onclick="handleCategoryClick(6)">
+                <span class="material-symbols-rounded">lightbulb</span>
+                <span class="label-text">Objecten</span>
+            </button>
+        </div>
+
+        <div class="cat-btn-wrapper">
+            <button class="btn btn-cat cat-7" onclick="handleCategoryClick(7)">
+                <span class="material-symbols-rounded">emoji_symbols</span>
+                <span class="label-text">Symbolen</span>
+            </button>
+        </div>
+    </div>
+    
+    <button id="btn-stop" class="btn btn-back" onclick="quitGame()" style="width: auto; padding: 10px 30px; margin-top:30px; font-size:0.9rem;">Stoppen</button>
+</div>
+
+<div id="game-over-modal" class="modal">
+    <div class="modal-content">
+        <h2 id="go-title" style="color: var(--accent); margin-top:0;">GAME OVER!</h2>
+        <div style="font-size:5rem; margin: 10px 0;" id="go-emoji">💀</div>
+        <p id="go-message" style="font-size: 1.2rem; color:#ccc; display:flex; flex-direction:column; align-items:center;">
+            Dat was fout!
+        </p>
+        <div class="score-pill" style="font-size:2.5rem; margin-bottom:20px;">Score: <span id="final-score">0</span></div>
+        <button class="btn btn-solo" onclick="resetToHome()">Opnieuw Spelen</button>
+    </div>
+</div>
+
+<div id="highscores-modal" class="modal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h2 style="margin:0; color:var(--primary);">Highscores</h2>
+            <span style="font-size:2rem; cursor:pointer;" onclick="document.getElementById('highscores-modal').style.display='none'">&times;</span>
+        </div>
+
+        <div class="scope-bar">
+            <button class="scope-btn active" onclick="switchScope('global', this)">🌎 Iedereen</button>
+            <button class="scope-btn" onclick="switchScope('personal', this)">👤 Ik</button>
+        </div>
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('today', this)">Vandaag</button>
+            <button class="tab-btn" onclick="switchTab('week', this)">Week</button>
+            <button class="tab-btn" onclick="switchTab('all', this)">Alltime</button>
+        </div>
+
+        <div id="hs-list" style="max-height: 300px; overflow-y: auto;">Laden...</div>
+    </div>
+</div>
+
+<div id="rules-modal" class="modal">
+    <div class="modal-content" style="text-align: left;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h2 id="rules-h2" style="margin:0; color:var(--secondary);">Spelregels</h2>
+            <span style="font-size:2rem; cursor:pointer;" onclick="document.getElementById('rules-modal').style.display='none'">&times;</span>
+        </div>
+		<div id="rules-content">
+        <p>Emoji's kennen we allemaal! Maar onder welke categorie ze vallen bij WhatsApp? Djeez, best moeilijk!</p>
+        
+        <p><strong>Solo:</strong> Één fout = Game Over. Hoe ver kom jij?</p>
+        <p><strong>1 vs 1:</strong> Jullie zien dezelfde emoji. Wie het eerst een fout maakt, verliest.</p>
+</div>
+        <p style="margin-top: 20px; font-size: 0.8rem; text-align: center;">
+            <a href="privacy.html" target="_blank" style="color: var(--secondary); text-decoration: none; opacity: 0.7;">Privacybeleid</a>
+        </p>
+
+        <button class="btn btn-solo" onclick="document.getElementById('rules-modal').style.display='none'">Begrepen!</button>
+    </div>
+</div>
+
+<div id="name-modal" class="modal">
+    <div class="modal-content">
+        <h3>Wie ben jij?</h3>
+        <input type="text" id="username-input" placeholder="Je naam..." maxlength="12" style="font-size:1.2rem; padding:10px; width:80%; text-align:center; border-radius:10px; border:none; margin-bottom:20px;">
+        <button class="btn btn-solo" onclick="saveUsername()">Opslaan</button>
+    </div>
+</div>
+
+<div id="install-banner" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; background: #2f3640; border: 2px solid var(--secondary); border-radius: 15px; padding: 15px; z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); align-items: center; justify-content: space-between; animation: slideUp 0.5s;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+ <img src="logo.webp" 
+     alt="Emodjeez Icon" 
+     style="width: 40px; height: 40px; border-radius: 8px;" 
+     loading="lazy" 
+     decoding="async">
+	 <div style="text-align: left;">
+            <div style="font-weight: bold; font-size: 0.9rem;">Emodjeez installeren?</div>
+            <div style="font-size: 0.75rem; color: #aaa;">Speel sneller vanaf je startscherm!</div>
+        </div>
+    </div>
+    <div style="display: flex; gap: 10px;">
+        <button id="btn-install-yes" style="background: var(--secondary); border: none; color: #000; padding: 8px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.8rem;">Installeren</button>
+        <button id="btn-install-no" style="background: transparent; border: 1px solid #555; color: #fff; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.8rem;">Later</button>
+    </div>
+</div>
+
+<script>
+// --- EMOJI DATABASE (CATEGORIZED) ---
+
+// Centrale bron voor alle categorie-informatie
+const CATEGORY_MAP = {
+    1: { name: "Smileys en mensen", icon: "sentiment_satisfied" },
+    2: { name: "Dieren en natuur", icon: "emoji_nature" },
+    3: { name: "Eten en drinken", icon: "local_cafe" },
+    4: { name: "Activiteiten", icon: "sports_basketball" },
+    5: { name: "Reizen en plaatsen", icon: "directions_car" },
+    6: { name: "Objecten", icon: "lightbulb" },
+    7: { name: "Symbolen", icon: "emoji_symbols" }
+};
+
+
+// 1=Smileys, 2=Animals, 3=Food, 4=Activities, 5=Travel, 6=Objects, 7=Symbols
+const EMOJI_DB = [
+    // 1. Smileys & People
+    {c:1, e:"😀"},{c:1, e:"😂"},{c:1, e:"😍"},{c:1, e:"🤔"},{c:1, e:"😎"},{c:1, e:"😭"},{c:1, e:"😡"},{c:1, e:"😱"},{c:1, e:"🤢"},{c:1, e:"🤡"},
+    {c:1, e:"👻"},{c:1, e:"👽"},{c:1, e:"🤖"},{c:1, e:"👋"},{c:1, e:"👍"},{c:1, e:"👎"},{c:1, e:"👊"},{c:1, e:"👏"},{c:1, e:"💪"},{c:1, e:"🙏"},
+    {c:1, e:"💅"},{c:1, e:"🧠"},{c:1, e:"👀"},{c:1, e:"👶"},{c:1, e:"👮"},{c:1, e:"🧟"},{c:1, e:"🧞"},{c:1, e:"🧜"},{c:1, e:"🧚"},{c:1, e:"🙆"},
+    
+    // 2. Animals & Nature
+    {c:2, e:"🐶"},{c:2, e:"🐱"},{c:2, e:"🐭"},{c:2, e:"🐹"},{c:2, e:"🐰"},{c:2, e:"🦊"},{c:2, e:"🐻"},{c:2, e:"🐼"},{c:2, e:"🐨"},{c:2, e:"🐯"},
+    {c:2, e:"🦁"},{c:2, e:"🐮"},{c:2, e:"🐷"},{c:2, e:"🐸"},{c:2, e:"🐵"},{c:2, e:"🐔"},{c:2, e:"🐧"},{c:2, e:"🐦"},{c:2, e:"🦆"},{c:2, e:"🦅"},
+    {c:2, e:"🦇"},{c:2, e:"🐺"},{c:2, e:"🐗"},{c:2, e:"🐴"},{c:2, e:"🦄"},{c:2, e:"🐝"},{c:2, e:"🐛"},{c:2, e:"🦋"},{c:2, e:"🐌"},{c:2, e:"🐞"},
+    {c:2, e:"💐"},{c:2, e:"🌹"},{c:2, e:"🌻"},{c:2, e:"🌲"},{c:2, e:"🌵"},{c:2, e:"🌴"},{c:2, e:"🍄"},{c:2, e:"🌊"},{c:2, e:"🔥"},{c:2, e:"🌈"},
+    
+    // 3. Food & Drink
+    {c:3, e:"🍏"},{c:3, e:"🍎"},{c:3, e:"🍐"},{c:3, e:"🍊"},{c:3, e:"🍋"},{c:3, e:"🍌"},{c:3, e:"🍉"},{c:3, e:"🍇"},{c:3, e:"🍓"},{c:3, e:"🍒"},
+    {c:3, e:"🍑"},{c:3, e:"🍍"},{c:3, e:"🥝"},{c:3, e:"🍅"},{c:3, e:"🥑"},{c:3, e:"🍆"},{c:3, e:"🥔"},{c:3, e:"🥕"},{c:3, e:"🌽"},{c:3, e:"🌶️"},
+    {c:3, e:"🍞"},{c:3, e:"🥐"},{c:3, e:"🥖"},{c:3, e:"🧀"},{c:3, e:"🍖"},{c:3, e:"🍗"},{c:3, e:"🍔"},{c:3, e:"🍟"},{c:3, e:"🍕"},{c:3, e:"🌭"},
+    {c:3, e:"🥪"},{c:3, e:"🌮"},{c:3, e:"🌯"},{c:3, e:"🍳"},{c:3, e:"🥗"},{c:3, e:"🍿"},{c:3, e:"🍦"},{c:3, e:"🍰"},{c:3, e:"🍪"},{c:3, e:"🍩"},
+    {c:3, e:"☕"},{c:3, e:"🍺"},{c:3, e:"🍷"},{c:3, e:"🍸"},{c:3, e:"🍹"},{c:3, e:"🍼"},{c:3, e:"🍽️"},{c:3, e:"🥢"},{c:3, e:"🥣"},{c:3, e:"🍬"},
+    
+    // 4. Activities
+    {c:4, e:"⚽"},{c:4, e:"🏀"},{c:4, e:"🏈"},{c:4, e:"⚾"},{c:4, e:"🎾"},{c:4, e:"🏐"},{c:4, e:"🏉"},{c:4, e:"🎱"},{c:4, e:"🏓"},{c:4, e:"🏸"},
+    {c:4, e:"🥊"},{c:4, e:"🥋"},{c:4, e:"🥅"},{c:4, e:"⛳"},{c:4, e:"⛸️"},{c:4, e:"🎣"},{c:4, e:"🎽"},{c:4, e:"🎿"},{c:4, e:"🛷"},{c:4, e:"🥌"},
+    {c:4, e:"🎯"},{c:4, e:"🎳"},{c:4, e:"🎮"},{c:4, e:"🎰"},{c:4, e:"🎨"},{c:4, e:"🎭"},{c:4, e:"🎤"},{c:4, e:"🎧"},{c:4, e:"🎷"},{c:4, e:"🎸"},
+    {c:4, e:"🎹"},{c:4, e:"🎺"},{c:4, e:"🎻"},{c:4, e:"🥁"},{c:4, e:"🎪"},{c:4, e:"🎗️"},{c:4, e:"🎟️"},{c:4, e:"🏆"},{c:4, e:"🥇"},{c:4, e:"🎖️"},
+
+    // 5. Travel & Places
+    {c:5, e:"🚗"},{c:5, e:"🚕"},{c:5, e:"🚙"},{c:5, e:"🚌"},{c:5, e:"🚓"},{c:5, e:"🚑"},{c:5, e:"🚒"},{c:5, e:"🚐"},{c:5, e:"🚚"},{c:5, e:"🚜"},
+    {c:5, e:"🚲"},{c:5, e:"🛴"},{c:5, e:"🛵"},{c:5, e:"🏍️"},{c:5, e:"🚂"},{c:5, e:"🚅"},{c:5, e:"✈️"},{c:5, e:"🚁"},{c:5, e:"🚀"},{c:5, e:"🛸"},
+    {c:5, e:"⛵"},{c:5, e:"🚢"},{c:5, e:"⚓"},{c:5, e:"⛽"},{c:5, e:"🚧"},{c:5, e:"🚦"},{c:5, e:"🛑"},{c:5, e:"🎡"},{c:5, e:"🎢"},{c:5, e:"🎠"},
+    {c:5, e:"🏗️"},{c:5, e:"🏠"},{c:5, e:"🏥"},{c:5, e:"🏦"},{c:5, e:"🏨"},{c:5, e:"🏰"},{c:5, e:"💒"},{c:5, e:"🗽"},{c:5, e:"🗼"},{c:5, e:"🗿"},
+
+    // 6. Objects
+    {c:6, e:"⌚"},{c:6, e:"📱"},{c:6, e:"💻"},{c:6, e:"⌨️"},{c:6, e:"🖨️"},{c:6, e:"🖱️"},{c:6, e:"📷"},{c:6, e:"📼"},{c:6, e:"🕯️"},{c:6, e:"💡"},
+    {c:6, e:"🔦"},{c:6, e:"🏮"},{c:6, e:"📔"},{c:6, e:"📚"},{c:6, e:"💰"},{c:6, e:"💵"},{c:6, e:"💳"},{c:6, e:"💎"},{c:6, e:"⚖️"},{c:6, e:"🔧"},
+    {c:6, e:"🔨"},{c:6, e:"⛏️"},{c:6, e:"🔩"},{c:6, e:"⚙️"},{c:6, e:"⛓️"},{c:6, e:"🔫"},{c:6, e:"💣"},{c:6, e:"🔪"},{c:6, e:"🛡️"},{c:6, e:"🚬"},
+    {c:6, e:"⚰️"},{c:6, e:"⚱️"},{c:6, e:"🏺"},{c:6, e:"🔮"},{c:6, e:"📿"},{c:6, e:"🧿"},{c:6, e:"💈"},{c:6, e:"🧲"},{c:6, e:"🧬"},{c:6, e:"🔭"},
+
+    // 7. Symbols
+    {c:7, e:"❤️"},{c:7, e:"🧡"},{c:7, e:"💛"},{c:7, e:"💚"},{c:7, e:"💙"},{c:7, e:"💜"},{c:7, e:"🖤"},{c:7, e:"💔"},{c:7, e:"💯"},{c:7, e:"💢"},
+    {c:7, e:"💬"},{c:7, e:"💤"},{c:7, e:"🛑"},{c:7, e:"🚫"},{c:7, e:"🔞"},{c:7, e:"📵"},{c:7, e:"☢️"},{c:7, e:"☣️"},{c:7, e:"🛐"},{c:7, e:"🕉️"},
+    {c:7, e:"🕎"},{c:7, e:"🔯"},{c:7, e:"♈"},{c:7, e:"♉"},{c:7, e:"♊"},{c:7, e:"♋"},{c:7, e:"♌"},{c:7, e:"♍"},{c:7, e:"♎"},{c:7, e:"♏"},
+    {c:7, e:"♐"},{c:7, e:"♑"},{c:7, e:"♒"},{c:7, e:"♓"},{c:7, e:"⛎"},{c:7, e:"🔀"},{c:7, e:"🔁"},{c:7, e:"🔂"},{c:7, e:"▶️"},{c:7, e:"#️⃣"}
+];
+
+const translations = {
+    nl: {
+        subtitle: "Emoji's kennen we allemaal!<br>Maar onder welke categorie ze vallen bij WhatsApp?<br>Djeez, best moeilijk!",
+        start: "START SPEL",
+        solo: "Solo Run",
+        multi: "1 vs 1 Duel",
+        high: "Highscores",
+        rules: "Spelregels",
+        instruction: "Onder welke WhatsApp categorie valt deze emoji?",
+        stop: "Stoppen",
+        rulesTitle: "Spelregels",
+        rulesText: "<p>Emoji's kennen we allemaal! Maar onder welke categorie ze vallen bij WhatsApp? Djeez, best moeilijk!</p><p><strong>Solo:</strong> Één fout = Game Over. Hoe ver kom jij?</p><p><strong>1 vs 1:</strong> Jullie zien dezelfde emoji. Wie het eerst een fout maakt, verliest.</p>",
+        rulesBtn: "Begrepen!",
+        privacy: "Privacybeleid",
+        wrong: "Dat was fout!",
+        itWas: "Het was:",
+        playAgain: "Opnieuw Spelen",
+        duelTitle: "1 vs 1 Duel",
+        duelDesc: "Speel tegelijk tegen een vriend.<br>Wie het eerst een fout maakt verliest!",
+        newGame: "Nieuw Spel Starten",
+        inviteFriend: "Heb je een link ontvangen? Klik daarop om mee te doen.",
+        waitingOpp: "Wachten op tegenstander...",
+        shareLink: "Stuur deze link naar je vriend:",
+        shareWA: "📱 Deel via WhatsApp",
+        copyLink: "📋 Kopieer Link",
+        back: "Terug",
+        score: "Score:",
+        statusSent: "Antwoord verzonden...",
+        statusWait: "Wachten op tegenstander...",
+        statusEval: "Ronde evalueren...",
+        draw: "GELIJKSPEL! Beiden fout.",
+        win: "JIJ WINT! 🎉",
+        lose: "VERLOREN... {name} wint.",
+        linkCopied: "Link gekopieerd!",
+        waText: "Ik daag je uit voor een potje Emodjeez! 🐱🚀\nWie kent de emoji's het best?\nKlik hier: ",
+        cat1: "Smileys en mensen",
+        cat2: "Dieren en natuur",
+        cat3: "Eten en drinken",
+        cat4: "Activiteiten",
+        cat5: "Reizen en plaatsen",
+        cat6: "Objecten",
+        cat7: "Symbolen"
+    },
+    en: {
+        subtitle: "We all know emojis!<br>But which WhatsApp category do they belong to?<br>Geez, quite difficult!",
+        start: "START GAME",
+        solo: "Solo Run",
+        multi: "1 vs 1 Duel",
+        high: "Highscores",
+        rules: "Rules",
+        instruction: "Which WhatsApp category does this emoji belong to?",
+        stop: "Quit",
+        rulesTitle: "Rules",
+        rulesText: "<p>We all know emojis! But which WhatsApp category do they belong to? Geez, quite difficult!</p><p><strong>Solo:</strong> One mistake = Game Over. How far can you go?</p><p><strong>1 vs 1:</strong> You see the same emoji. The first one to make a mistake loses.</p>",
+        rulesBtn: "Understood!",
+        privacy: "Privacy Policy",
+        wrong: "That was wrong!",
+        itWas: "It was:",
+        playAgain: "Play Again",
+        duelTitle: "1 vs 1 Duel",
+        duelDesc: "Play against a friend in real-time.<br>First one to make a mistake loses!",
+        newGame: "Start New Game",
+        inviteFriend: "Received a link? Click it to join.",
+        waitingOpp: "Waiting for opponent...",
+        shareLink: "Send this link to your friend:",
+        shareWA: "📱 Share via WhatsApp",
+        copyLink: "📋 Copy Link",
+        back: "Back",
+        score: "Score:",
+        statusSent: "Answer sent...",
+        statusWait: "Waiting for opponent...",
+        statusEval: "Evaluating round...",
+        draw: "DRAW! Both incorrect.",
+        win: "YOU WIN! 🎉",
+        lose: "DEFEAT... {name} wins.",
+        linkCopied: "Link copied!",
+        waText: "I challenge you to a game of Emodjeez! 🐱🚀\nWho knows the emojis best?\nClick here: ",
+        cat1: "Smileys & People",
+        cat2: "Animals & Nature",
+        cat3: "Food & Drink",
+        cat4: "Activities",
+        cat5: "Travel & Places",
+        cat6: "Objects",
+        cat7: "Symbols"
+    },
+    de: {
+        subtitle: "Emojis kennen wir alle!<br>Aber in welche WhatsApp-Kategorie fallen sie?<br>Djeez, ganz schön schwierig!",
+        start: "SPIEL STARTEN",
+        solo: "Solo-Lauf",
+        multi: "1 gegen 1 Duell",
+        high: "Bestenlisten",
+        rules: "Spielregeln",
+        instruction: "In welche WhatsApp-Kategorie fällt dieses Emoji?",
+        stop: "Stoppen",
+        rulesTitle: "Spielregeln",
+        rulesText: "<p>Emojis kennen wir alle! Aber in welche WhatsApp-Kategorie fallen sie? Djeez, ganz schön schwierig!</p><p><strong>Solo:</strong> Ein Fehler = Game Over. Wie weit kommst du?</p><p><strong>1 gegen 1:</strong> Ihr seht das gleiche Emoji. Wer zuerst einen Fehler macht, verliert.</p>",
+        rulesBtn: "Verstanden!",
+        privacy: "Datenschutzerklärung",
+        wrong: "Das war falsch!",
+        itWas: "Es war:",
+        playAgain: "Noch einmal spielen",
+        duelTitle: "1 gegen 1 Duell",
+        duelDesc: "Spiele gleichzeitig gegen einen Freund.<br>Wer zuerst einen Fehler macht, verliert!",
+        newGame: "Neues Spiel starten",
+        inviteFriend: "Hast du einen Link erhalten? Klicke darauf, um mitzuspielen.",
+        waitingOpp: "Warten auf Gegner...",
+        shareLink: "Sende diesen Link an deinen Freund:",
+        shareWA: "📱 Via WhatsApp teilen",
+        copyLink: "📋 Link kopieren",
+        back: "Zurück",
+        score: "Punktzahl:",
+        statusSent: "Antwort gesendet...",
+        statusWait: "Warten auf Gegner...",
+        statusEval: "Runde auswerten...",
+        draw: "UNENTSCHIEDEN! Beide falsch.",
+        win: "DU HAST GEWONNEN! 🎉",
+        lose: "VERLOREN... {name} gewinnt.",
+        linkCopied: "Link kopiert!",
+        waText: "Ich fordere dich zu einer Runde Emodjeez heraus! 🐱🚀\nWer kennt die Emojis am besten?\nHier klicken: ",
+        cat1: "Smileys & Personen",
+        cat2: "Tiere & Natur",
+        cat3: "Essen & Trinken",
+        cat4: "Aktivitäten",
+        cat5: "Reisen & Orte",
+        cat6: "Objekte",
+        cat7: "Symbole"
+    }
+};
+let currentLang = 'nl';
+
+function initLanguage() {
+    const browserLang = navigator.language.split('-')[0];
+    currentLang = ['nl', 'en', 'de'].includes(browserLang) ? browserLang : 'en';
+    document.getElementById('language-select').value = currentLang;
+    applyLanguage();
+}
+
+function changeLanguage(lang) {
+    currentLang = lang;
+    applyLanguage();
+}
+
+function applyLanguage() {
+    const t = translations[currentLang];
+    
+    // Titels & Menu
+    document.querySelector('.app-subtitle').innerHTML = t.subtitle;
+    document.querySelector('#start-screen h2').innerText = t.start;
+    document.getElementById('txt-solo').innerText = t.solo;
+    document.getElementById('txt-multi').innerText = t.multi;
+    document.getElementById('txt-high').innerText = t.high;
+    document.getElementById('txt-rules').innerText = t.rules;
+    
+    // In-game & Modals algemeen
+    document.querySelector('.game-instruction').innerText = t.instruction;
+    document.getElementById('btn-stop').innerText = t.stop;
+    document.getElementById('rules-h2').innerText = t.rulesTitle;
+    document.getElementById('rules-content').innerHTML = t.rulesText;
+    document.querySelector('#rules-modal .btn-solo').innerText = t.rulesBtn;
+    document.querySelector('#game-over-modal .btn-solo').innerText = t.playAgain;
+    document.querySelector('a[href="privacy.html"]').innerText = t.privacy;
+
+    // Lobby UI vertalingen
+    document.querySelector('#lobby-ui h3').innerText = t.duelTitle;
+    document.querySelector('#lobby-start p').innerHTML = t.duelDesc;
+    document.querySelector('#lobby-start .btn-multi').innerText = t.newGame;
+    document.querySelector('#lobby-start p:last-child').innerText = t.inviteFriend;
+    document.querySelector('#lobby-share h3').innerText = t.waitingOpp;
+    document.querySelector('#lobby-share p').innerText = t.shareLink;
+    document.querySelector('#lobby-share .btn[onclick="shareWhatsapp()"]').innerText = t.shareWA;
+    document.querySelector('#lobby-share .btn[onclick="copyLink()"]').innerText = t.copyLink;
+    document.querySelector('#lobby-ui .btn-back').innerText = t.back;
+	document.querySelector('#game-over-modal .btn-solo').innerText = t.playAgain;
+	
+    
+    // Game Header
+    document.getElementById('game-info-left').firstChild.textContent = t.score + " ";
+    
+    // Categorie knoppen
+    for (let i = 1; i <= 7; i++) {
+        const btn = document.querySelector('.cat-' + i + ' .label-text');
+        if (btn) btn.innerText = t['cat' + i];
+    }
+}
+
+// --- GAME STATE ---
+let currentScore = 0;
+let currentEmojiData = null;
+let isMultiplayer = false;
+let gameActive = false;
+let myUsername = localStorage.getItem('emodjeez_username') || "Gast";
+let gameId = null;
+let playerRole = null; // 'host' or 'guest'
+let unsubscribeGame = null;
+
+// --- INITIALIZATION ---
+window.onload = () => {
+    updateProfileDisplay();
+    // Check if user followed a link
+    if (window.pendingInviteId) {
+        window.checkAndJoin();
+    }
+};
+
+function updateProfileDisplay() {
+    document.getElementById('profile-name').innerText = myUsername;
+}
+
+function openNameChange() {
+    document.getElementById('username-input').value = myUsername;
+    document.getElementById('name-modal').style.display = 'flex';
+}
+
+function saveUsername() {
+    const val = document.getElementById('username-input').value.trim();
+    if(val.length > 0) {
+        myUsername = val;
+        localStorage.setItem('emodjeez_username', val);
+        updateProfileDisplay();
+    }
+    document.getElementById('name-modal').style.display = 'none';
+}
+
+function openRules() {
+    document.getElementById('rules-modal').style.display = 'flex';
+}
+
+// --- SOLO GAME LOGIC ---
+function startSoloGame() {
+    if(!myUsername || myUsername === "Gast") { openNameChange(); return; }
+    
+    isMultiplayer = false;
+    currentScore = 0;
+    gameActive = true;
+    
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('game-screen').style.display = 'flex';
+    document.getElementById('game-mode-label').innerText = "SOLO RUN";
+    document.getElementById('game-info-right').style.display = 'none';
+    
+    updateScoreUI();
+    nextRoundSolo();
+}
+
+function nextRoundSolo() {
+    if(!gameActive) return;
+    // Pick random emoji
+    currentEmojiData = EMOJI_DB[Math.floor(Math.random() * EMOJI_DB.length)];
+    
+    // Alleen de tekst van het emoji-element updaten, niet de hele card (anders verdwijnt vinkje)
+    document.getElementById('main-emoji').innerText = currentEmojiData.e;
+    
+    const card = document.getElementById('main-card');
+    // Reset animations
+    card.classList.remove('correct-pulse', 'shake');
+    void card.offsetWidth; // trigger reflow
+}
+
+async function handleCategoryClick(catId) {
+    if(!gameActive) return;
+    
+    const trans = translations[currentLang];
+    const card = document.getElementById('main-card');
+    const icon = document.getElementById('feedback-icon');
+
+    if (isMultiplayer) {
+        const correct = (catId === currentEmojiData.c);
+        if(correct) {
+            card.classList.add('correct-pulse');
+            icon.classList.add('show-feedback');
+        } else {
+            card.classList.add('shake');
+        }
+        
+        handleMultiplayerMove(catId);
+        setTimeout(() => icon.classList.remove('show-feedback'), 600);
+        return;
+    }
+
+    // Solo Logic
+    if (catId === currentEmojiData.c) {
+        currentScore++;
+        updateScoreUI();
+        card.classList.add('correct-pulse');
+        icon.classList.add('show-feedback');
+        setTimeout(() => {
+            icon.classList.remove('show-feedback');
+            nextRoundSolo();
+        }, 600);
+    } else {
+        gameActive = false;
+        card.classList.add('shake');
+        setTimeout(() => gameOverSolo(catId), 600);
+    }
+}
+function gameOverSolo(clickedCat) {
+    const t = translations[currentLang];
+    const correctInfo = CATEGORY_MAP[currentEmojiData.c];
+    const translatedCatName = t['cat' + currentEmojiData.c];
+    
+    document.getElementById('go-title').innerText = "GAME OVER!";
+    document.getElementById('go-emoji').innerText = currentEmojiData.e;
+    
+    document.getElementById('go-message').innerHTML = `
+        ${t.wrong}<br>${t.itWas}<br>
+        <div style="margin-top:10px; display:flex; flex-direction:column; align-items:center; color: var(--primary);">
+            <span class="material-symbols-rounded" style="font-size: 2.5rem; margin-bottom:5px;">${correctInfo.icon}</span>
+            <b style="font-size:1.1rem; text-transform:uppercase;">${translatedCatName}</b>
+        </div>
+    `;
+    
+    document.getElementById('final-score').innerText = currentScore;
+    document.getElementById('game-over-modal').style.display = 'flex';
+    
+    saveHighscore(currentScore, 'solo');
+}
+
+function updateScoreUI() {
+    document.getElementById('score-val').innerText = currentScore;
+}
+
+function quitGame() {
+    gameActive = false;
+    if(unsubscribeGame) unsubscribeGame();
+    location.reload();
+}
+
+// --- MULTIPLAYER LOGIC ---
+function showLobby() {
+    if(!myUsername || myUsername === "Gast") { openNameChange(); return; }
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('lobby-ui').style.display = 'flex';
+}
+
+// Host Creates Game
+async function createOnlineGame() {
+    const { addDoc, collection, serverTimestamp } = window.firebaseFuncs;
+    
+    // Initial Emoji
+    const startEmojiIdx = Math.floor(Math.random() * EMOJI_DB.length);
+
+    try {
+        const docRef = await addDoc(collection(window.db, "emodjeez_games"), {
+            hostId: window.currentUser.uid,
+            hostName: myUsername,
+            guestId: null,
+            status: "waiting", // waiting, playing, finished
+            currentEmojiIdx: startEmojiIdx,
+            round: 1,
+            hostScore: 0,
+            guestScore: 0,
+            hostMove: null, // { correct: bool, done: bool }
+            guestMove: null,
+            winner: null,
+            timestamp: serverTimestamp()
+        });
+        
+        gameId = docRef.id;
+        playerRole = 'host';
+        waitForGuest();
+    } catch(e) {
+        console.error(e);
+        alert("Fout bij aanmaken spel.");
+    }
+}
+
+function waitForGuest() {
+    document.getElementById('lobby-start').style.display = 'none';
+    document.getElementById('lobby-share').style.display = 'block';
+    subscribeToGame();
+}
+
+// Guest Joins (called from init)
+window.checkAndJoin = async function() {
+    if(!window.currentUser || !window.pendingInviteId) return;
+    
+    if(!myUsername || myUsername === "Gast") { 
+        openNameChange(); 
+        // Hook to retry join after save
+        const oldSave = window.saveUsername;
+        window.saveUsername = function() {
+            oldSave(); // call original
+            setTimeout(window.checkAndJoin, 500); // retry join
+        }
+        return; 
+    }
+
+    gameId = window.pendingInviteId;
+    window.pendingInviteId = null;
+    playerRole = 'guest';
+
+    const { doc, updateDoc } = window.firebaseFuncs;
+    await updateDoc(doc(window.db, "emodjeez_games", gameId), {
+        guestId: window.currentUser.uid,
+        guestName: myUsername,
+        status: "playing"
+    });
+    
+    subscribeToGame();
+}
+
+function subscribeToGame() {
+    const { doc, onSnapshot } = window.firebaseFuncs;
+    
+    unsubscribeGame = onSnapshot(doc(window.db, "emodjeez_games", gameId), (snapshot) => {
+        if(!snapshot.exists()) return;
+        const data = snapshot.data();
+        handleGameState(data);
+    });
+}
+
+// Update de statussen in handleGameState
+function handleGameState(data) {
+    const trans = translations[currentLang]; // Unieke naam
+    const myUid = window.currentUser.uid;
+    const isHost = (data.hostId === myUid);
+    
+    if (data.status === 'waiting') return;
+
+    if (document.getElementById('game-screen').style.display === 'none') {
+        document.getElementById('lobby-ui').style.display = 'none';
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('game-screen').style.display = 'flex';
+        isMultiplayer = true;
+        gameActive = true;
+        document.getElementById('game-mode-label').innerText = "1 VS 1";
+        document.getElementById('game-info-right').style.display = 'block';
+    }
+
+    const oppName = isHost ? (data.guestName || "Opponent") : data.hostName;
+    const myMove = isHost ? data.hostMove : data.guestMove;
+    const oppMove = isHost ? data.guestMove : data.hostMove;
+    const myScore = isHost ? data.hostScore : data.guestScore;
+    
+    document.getElementById('game-info-right').innerHTML = `VS <b>${oppName}</b>`;
+    document.getElementById('score-val').innerText = myScore;
+
+    if (data.status === 'finished') {
+        gameActive = false;
+        let msg = "";
+        let emoji = "";
+        
+        if (data.winner === 'draw') {
+            msg = trans.draw;
+            emoji = "🤝";
+        } else if (data.winner === myUid) {
+            msg = trans.win;
+            emoji = "🏆";
+        } else {
+            msg = trans.lose.replace('{name}', oppName);
+            emoji = "💀";
+        }
+        
+        document.getElementById('go-title').innerText = "DUEL OVER";
+        document.getElementById('go-emoji').innerText = emoji;
+        document.getElementById('go-message').innerText = msg;
+        document.getElementById('final-score').innerText = myScore;
+        document.getElementById('game-over-modal').style.display = 'flex';
+        return;
+    }
+
+    currentEmojiData = EMOJI_DB[data.currentEmojiIdx];
+    document.getElementById('main-emoji').innerText = currentEmojiData.e;
+
+    const statusDiv = document.getElementById('status-message');
+    if (myMove && !oppMove) {
+        statusDiv.innerText = trans.statusWait;
+    } else if (myMove && oppMove) {
+        statusDiv.innerText = trans.statusEval;
+        if (isHost) evaluateRound(data);
+    } else {
+        statusDiv.innerText = "";
+    }
+}
+// Update de verzend-status
+async function handleMultiplayerMove(catId) {
+    if (!gameActive) return;
+    const t = translations[currentLang];
+    const correct = (catId === currentEmojiData.c);
+    const { updateDoc, doc } = window.firebaseFuncs;
+    const field = playerRole === 'host' ? 'hostMove' : 'guestMove';
+    
+    await updateDoc(doc(window.db, "emodjeez_games", gameId), {
+        [field]: { correct: correct, timestamp: Date.now() }
+    });
+    
+    document.getElementById('status-message').innerText = t.statusSent;
+}
+
+// Update de deel-functies
+function copyLink() {
+    const t = translations[currentLang];
+    const url = window.location.origin + window.location.pathname + "?game=" + gameId;
+    navigator.clipboard.writeText(url);
+    alert(t.linkCopied);
+}
+
+function shareWhatsapp() {
+    const t = translations[currentLang];
+    const url = window.location.origin + window.location.pathname + "?game=" + gameId;
+    const text = t.waText + url;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+
+async function handleMultiplayerMove(catId) {
+    if (!gameActive) return;
+    
+    // Check if move already made
+    const correct = (catId === currentEmojiData.c);
+    
+    const { updateDoc, doc } = window.firebaseFuncs;
+    const field = playerRole === 'host' ? 'hostMove' : 'guestMove';
+    
+    // Send move
+    await updateDoc(doc(window.db, "emodjeez_games", gameId), {
+        [field]: { correct: correct, timestamp: Date.now() }
+    });
+    
+    // Lock UI temporarily
+    document.getElementById('status-message').innerText = "Antwoord verzonden...";
+}
+
+async function evaluateRound(data) {
+    if (playerRole !== 'host' || !data.hostMove || !data.guestMove) return;
+
+    const { updateDoc, doc } = window.firebaseFuncs;
+    const gameRef = doc(window.db, "emodjeez_games", gameId);
+    
+    const hCorrect = data.hostMove.correct;
+    const gCorrect = data.guestMove.correct;
+
+    if (hCorrect && gCorrect) {
+        const nextIdx = Math.floor(Math.random() * EMOJI_DB.length);
+        // We updaten eerst de moves naar null om de UI "vrij" te maken
+        await updateDoc(gameRef, {
+            hostMove: null,
+            guestMove: null,
+            currentEmojiIdx: nextIdx,
+            hostScore: (data.hostScore || 0) + 1,
+            guestScore: (data.guestScore || 0) + 1,
+            round: (data.round || 1) + 1
+        });
+    } else {
+        let winner = 'draw';
+        if (hCorrect && !gCorrect) winner = data.hostId;
+        if (!hCorrect && gCorrect) winner = data.guestId;
+
+        await updateDoc(gameRef, {
+            status: 'finished',
+            winner: winner,
+            hostScore: hCorrect ? (data.hostScore || 0) + 1 : (data.hostScore || 0),
+            guestScore: gCorrect ? (data.guestScore || 0) + 1 : (data.guestScore || 0)
+        });
+    }
+}
+
+function resetToHome() {
+    // Bewaar de huidige taalinstelling in de URL
+    const url = new URL(window.location.href);
+    const currentLangParam = url.searchParams.get('lang');
+    
+    // Maak een schone URL zonder de ?game= parameter
+    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+    const newUrl = new URL(cleanUrl);
+    
+    // Voeg de taal weer toe als die er was, zodat de app in de juiste taal herstart
+    if (currentLangParam) {
+        newUrl.searchParams.set('lang', currentLangParam);
+    }
+    
+    window.history.replaceState({}, document.title, newUrl.toString());
+    window.location.reload();
+}
+
+
+
+// --- SHARING ---
+function copyLink() {
+    const url = window.location.origin + window.location.pathname + "?game=" + gameId;
+    navigator.clipboard.writeText(url);
+    alert("Link gekopieerd!");
+}
+
+function shareWhatsapp() {
+    const url = window.location.origin + window.location.pathname + "?game=" + gameId;
+    const text = `Ik daag je uit voor een potje Emodjeez! 🐱🚀\nWie kent de emoji's het best?\nKlik hier: ${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+// --- HIGHSCORES ---
+async function saveHighscore(score, mode) {
+    if(score === 0) return;
+    const { addDoc, collection, serverTimestamp } = window.firebaseFuncs;
+    try {
+        await addDoc(collection(window.db, "emodjeez_highscores"), {
+            name: myUsername,
+            score: score,
+            mode: mode,
+            timestamp: serverTimestamp()
+        });
+    } catch(e) { console.error("Score save error", e); }
+}
+
+let hsScope = 'global';
+let hsTab = 'today';
+
+function openHighscores() {
+    document.getElementById('highscores-modal').style.display = 'flex';
+    loadHighscores();
+}
+
+function switchScope(scope, btn) {
+    hsScope = scope;
+    document.querySelectorAll('.scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadHighscores();
+}
+
+function switchTab(tab, btn) {
+    hsTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadHighscores();
+}
+
+async function loadHighscores() {
+    const listEl = document.getElementById('hs-list');
+    listEl.innerHTML = "Laden...";
+    
+    const { collection, query, orderBy, limit, getDocs, where } = window.firebaseFuncs;
+    let q;
+
+    try {
+        const ref = collection(window.db, "emodjeez_highscores");
+        
+        if (hsScope === 'personal') {
+            // Filter on name, sort in memory (Firestore limitation for simple queries)
+            q = query(ref, where("name", "==", myUsername), limit(50));
+        } else {
+            q = query(ref, orderBy("score", "desc"), limit(50));
+        }
+        
+        const snapshot = await getDocs(q);
+        let data = snapshot.docs.map(d => d.data());
+        
+        // Filter by Time (Client Side is easier for this scale)
+        const now = new Date();
+        data = data.filter(d => {
+            if(!d.timestamp) return false;
+            const date = d.timestamp.toDate();
+            if (hsTab === 'today') {
+                return date.toDateString() === now.toDateString();
+            } else if (hsTab === 'week') {
+                const oneWeekAgo = new Date();
+                oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+                return date > oneWeekAgo;
+            }
+            return true;
+        });
+        
+        // Sort if personal (since we didn't orderBy score)
+        if (hsScope === 'personal') {
+            data.sort((a,b) => b.score - a.score);
+        }
+        
+        // Render
+        if (data.length === 0) {
+            listEl.innerHTML = "<div style='padding:20px; color:#aaa;'>Nog geen scores gevonden.</div>";
+            return;
+        }
+        
+        listEl.innerHTML = "";
+        data.slice(0, 20).forEach((item, idx) => {
+            const row = document.createElement('div');
+            row.className = 'hs-row';
+            row.innerHTML = `
+                <div class="hs-rank">${idx+1}</div>
+                <div class="hs-name">${item.name}</div>
+                <div class="hs-score">${item.score}</div>
+            `;
+            listEl.appendChild(row);
+        });
+        
+    } catch(e) {
+        console.error(e);
+        listEl.innerHTML = "Fout bij laden.";
+    }
+}
+
+// --- INSTALLATIE PROMPT LOGICA ---
+let deferredPrompt;
+const installBanner = document.getElementById('install-banner');
+
+// Luister naar het event, maar doe nog niets
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    console.log("Installatie prompt klaargezet door browser.");
+});
+
+window.addEventListener('click', () => {
+    // Toon de banner alleen als er een prompt klaartstaat EN we niet in een game zitten
+    if (deferredPrompt && !sessionStorage.getItem('install-dismissed') && !gameActive) {
+        installBanner.style.display = 'flex';
+    }
+}, { once: true });
+
+document.getElementById('btn-install-yes').addEventListener('click', async () => {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`Gebruiker koos: ${outcome}`);
+        deferredPrompt = null;
+        installBanner.style.display = 'none';
+    }
+});
+
+document.getElementById('btn-install-no').addEventListener('click', () => {
+    installBanner.style.display = 'none';
+    // Onthoud dat de gebruiker het heeft weggeklikt (voor deze sessie)
+    sessionStorage.setItem('install-dismissed', 'true');
+});
+
+// Verberg banner als de app al geïnstalleerd is
+window.addEventListener('appinstalled', () => {
+    installBanner.style.display = 'none';
+    deferredPrompt = null;
+});
+
+// Registreer de Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js')
+      .then(reg => console.log('Service Worker geregistreerd!', reg))
+      .catch(err => console.log('Service Worker mislukt:', err));
+  });
+}
+
+</script>
+
+
+
+</body>
+</html>

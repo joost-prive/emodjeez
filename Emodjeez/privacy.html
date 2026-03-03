@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Privacy - Emodjeez</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #1e3799 0%, #0c2461 100%);
+            --primary: #FFD700;
+            --secondary: #00d2d3;
+            --text-main: #ffffff;
+            --surface: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: var(--surface);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+        }
+
+        /* Exact dezelfde styling als op index.html */
+        .lang-selector {
+            position: absolute; top: 15px; left: 15px;
+            background: rgba(0,0,0,0.4); padding: 5px 10px;
+            border-radius: 20px; cursor: pointer; font-size: 1.1rem;
+            display: flex; align-items: center; gap: 5px; border: 1px solid rgba(255,255,255,0.2);
+            z-index: 100;
+        }
+        select#language-select {
+            background: transparent; color: white; border: none; font-family: 'Fredoka'; font-size: 0.9rem; outline: none; cursor: pointer;
+        }
+        select#language-select option { background: #2c1e3e; }
+
+        h1 { color: var(--primary); font-size: 2rem; margin-top: 40px; }
+        h2 { color: var(--secondary); font-size: 1.3rem; margin-top: 25px; }
+        p { opacity: 0.9; }
+
+        .back-btn {
+            display: inline-block;
+            margin-top: 30px;
+            padding: 12px 25px;
+            background: var(--primary);
+            color: #0c2461;
+            text-decoration: none;
+            border-radius: 15px;
+            font-weight: 700;
+        }
+
+        .content-section { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="lang-selector">
+            <select id="language-select" onchange="changeLanguage(this.value)">
+                <option value="nl">🇳🇱</option>
+                <option value="en">🇺🇸</option>
+                <option value="de">🇩🇪</option>
+            </select>
+        </div>
+
+        <div id="lang-nl" class="content-section">
+            <h1>Privacybeleid</h1>
+            <p><strong>Laatst bijgewerkt:</strong> 6 januari 2026</p>
+            <p>Emodjeez is een hobby-project bedoeld voor entertainment. Wij hechten grote waarde aan je privacy en houden de gegevensverzameling tot een absoluut minimum beperkt.</p>
+            
+            <h2>1. Gegevensverzameling</h2>
+            <p><strong>Gebruikersnaam:</strong> Voor highscores en duels vragen we om een naam. Dit mag een pseudoniem zijn. We raden af om je volledige naam te gebruiken.</p>
+            <p><strong>Techniek:</strong> We gebruiken Firebase Anonymous Authentication voor de technische werking van duels. Hieraan zijn geen persoonlijke gegevens zoals e-mail of wachtwoorden gekoppeld.</p>
+
+            <h2>2. Gebruik van gegevens</h2>
+            <p>De opgegeven naam wordt uitsluitend gebruikt voor de openbare ranglijst en om spelers tijdens een duel te identificeren.</p>
+
+            <h2>3. Delen van gegevens</h2>
+            <p>Wij delen of verkopen geen gegevens aan derden. Data wordt veilig opgeslagen via Google Firebase.</p>
+
+            <h2>4. Contact</h2>
+            <p>Vragen over dit project kunnen worden gericht aan de beheerder via de officiële website: <strong>emodjeez.net</strong>.</p>
+
+            <div style="text-align: center;">
+                <a href="index.html" class="back-btn">Terug naar de game</a>
+            </div>
+        </div>
+
+        <div id="lang-en" class="content-section">
+            <h1>Privacy Policy</h1>
+            <p><strong>Last updated:</strong> January 6, 2026</p>
+            <p>Emodjeez is a hobby project intended for entertainment. We highly value your privacy and keep data collection to an absolute minimum.</p>
+            
+            <h2>1. Data Collection</h2>
+            <p><strong>Username:</strong> For high scores and duels, we ask for a name. This may be a pseudonym. We advise against using your full name.</p>
+            <p><strong>Technology:</strong> We use Firebase Anonymous Authentication for the technical operation of duels. No personal data such as email or passwords are linked to this.</p>
+
+            <h2>2. Use of Data</h2>
+            <p>The provided name is used exclusively for the public leaderboard and to identify players during a duel.</p>
+
+            <h2>3. Sharing Data</h2>
+            <p>We do not share or sell data to third parties. Data is securely stored via Google Firebase.</p>
+
+            <h2>4. Contact</h2>
+            <p>Questions about this project can be directed to the administrator via the official website: <strong>emodjeez.net</strong>.</p>
+
+            <div style="text-align: center;">
+                <a href="index.html" class="back-btn">Back to game</a>
+            </div>
+        </div>
+
+        <div id="lang-de" class="content-section">
+            <h1>Datenschutzrichtlinie</h1>
+            <p><strong>Zuletzt aktualisiert:</strong> 6. Januar 2026</p>
+            <p>Emodjeez ist ein Hobbyprojekt zur Unterhaltung. Wir legen großen Wert auf Ihre Privatsphäre und beschränken die Datenerhebung auf ein absolutes Minimum.</p>
+            
+            <h2>1. Datenerhebung</h2>
+            <p><strong>Benutzername:</strong> Für Highscores und Duelle fragen wir nach einem Namen. Dies kann ein Pseudonym sein. Wir raten davon ab, Ihren vollständigen Namen zu verwenden.</p>
+            <p><strong>Technik:</strong> Wir nutzen Firebase Anonymous Authentication für den technischen Ablauf von Duellen. Es werden keine persönlichen Daten wie E-Mail oder Passwörter verknüpft.</p>
+
+            <h2>2. Datennutzung</h2>
+            <p>Der angegebene Name wird ausschließlich für die öffentliche Rangliste und zur Identifizierung der Spieler während eines Duells verwendet.</p>
+
+            <h2>3. Weitergabe von Daten</h2>
+            <p>Wir geben keine Daten an Dritte weiter und verkaufen diese auch nicht. Die Daten werden sicher über Google Firebase gespeichert.</p>
+
+            <h2>4. Kontakt</h2>
+            <p>Fragen zu diesem Projekt können über die offizielle Website an den Administrator gerichtet werden: <strong>emodjeez.net</strong>.</p>
+
+            <div style="text-align: center;">
+                <a href="index.html" class="back-btn">Zurück zum Spiel</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function changeLanguage(lang) {
+            // Verberg alles
+            document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
+            // Toon de juiste taal
+            const section = document.getElementById('lang-' + lang);
+            if (section) {
+                section.style.display = 'block';
+                localStorage.setItem('preferred-lang', lang);
+                document.getElementById('language-select').value = lang;
+            }
+        }
+
+        window.onload = () => {
+            // Check eerst localStorage (van de index.html), anders browser taal, anders Engels
+            const savedLang = localStorage.getItem('preferred-lang');
+            const browserLang = navigator.language.split('-')[0];
+            const supported = ['nl', 'en', 'de'];
+            
+            let finalLang = 'en';
+            if (savedLang && supported.includes(savedLang)) {
+                finalLang = savedLang;
+            } else if (supported.includes(browserLang)) {
+                finalLang = browserLang;
+            }
+
+            changeLanguage(finalLang);
+        };
+    </script>
+</body>
+</html>

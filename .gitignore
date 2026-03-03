@@ -1,0 +1,30 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Logs
+*.log
+
+# Android / Gradle (emodjeez-app)
+emodjeez-app/.gradle/
+emodjeez-app/**/build/
+emodjeez-app/local.properties
+emodjeez-app/.idea/
+emodjeez-app/captures/
+
+# Android artifacts
+*.apk
+*.aab
+*.ap_
+*.idsig
+
+# Signing material / secrets
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+
+# Node (if ever added)
+node_modules/
