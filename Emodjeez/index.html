@@ -796,17 +796,39 @@ const translations = {
         cat7: "Symbole"
     }
 };
-let currentLang = 'nl';
+let currentLang = 'en';
+
+function getInitialLanguage() {
+    const supportedLanguages = ['nl', 'en', 'de'];
+    const savedLanguage = localStorage.getItem('preferred-lang');
+
+    if (savedLanguage && supportedLanguages.includes(savedLanguage)) {
+        return savedLanguage;
+    }
+
+    const browserLanguages = Array.isArray(navigator.languages) && navigator.languages.length > 0
+        ? navigator.languages
+        : [navigator.language || 'en'];
+
+    for (const lang of browserLanguages) {
+        const normalizedLang = (lang || '').toLowerCase().split('-')[0];
+        if (supportedLanguages.includes(normalizedLang)) {
+            return normalizedLang;
+        }
+    }
+
+    return 'en';
+}
 
 function initLanguage() {
-    const browserLang = navigator.language.split('-')[0];
-    currentLang = ['nl', 'en', 'de'].includes(browserLang) ? browserLang : 'en';
-    document.getElementById('language-select').value = currentLang;
+    currentLang = getInitialLanguage();
     applyLanguage();
 }
 
 function changeLanguage(lang) {
-    currentLang = lang;
+    const supportedLanguages = ['nl', 'en', 'de'];
+    currentLang = supportedLanguages.includes(lang) ? lang : 'en';
+    localStorage.setItem('preferred-lang', currentLang);
     applyLanguage();
 }
 
@@ -865,6 +887,7 @@ let unsubscribeGame = null;
 
 // --- INITIALIZATION ---
 window.onload = () => {
+    initLanguage();
     updateProfileDisplay();
     // Check if user followed a link
     if (window.pendingInviteId) {
@@ -1260,13 +1283,28 @@ function shareWhatsapp() {
 
 // --- HIGHSCORES ---
 async function saveHighscore(score, mode) {
-    if(score === 0) return;
+    if (score <= 0) return;
     const { addDoc, collection, serverTimestamp } = window.firebaseFuncs;
+
+    const maxWaitMs = 7000;
+    const pollIntervalMs = 150;
+    const start = Date.now();
+    while (!window.currentUser && (Date.now() - start) < maxWaitMs) {
+        await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+
+    if (!window.currentUser) {
+        console.warn("Highscore skipped: user auth not ready in time.");
+        return;
+    }
+
     try {
         await addDoc(collection(window.db, "emodjeez_highscores"), {
+            uid: window.currentUser.uid,
             name: myUsername,
             score: score,
             mode: mode,
+            clientTimestamp: Date.now(),
             timestamp: serverTimestamp()
         });
     } catch(e) { console.error("Score save error", e); }
@@ -1299,40 +1337,94 @@ async function loadHighscores() {
     listEl.innerHTML = "Laden...";
     
     const { collection, query, orderBy, limit, getDocs, where } = window.firebaseFuncs;
-    let q;
+
+    function getScoreDate(item) {
+        if (item.timestamp && typeof item.timestamp.toDate === 'function') {
+            return item.timestamp.toDate();
+        }
+        if (item.clientTimestamp) {
+            return new Date(item.clientTimestamp);
+        }
+        return null;
+    }
+
+    function isWithinActiveTab(item, now) {
+        const date = getScoreDate(item);
+        if (!date) return false;
+
+        if (hsTab === 'today') {
+            return date.toDateString() === now.toDateString();
+        }
+
+        if (hsTab === 'week') {
+            const oneWeekAgo = new Date(now);
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            return date > oneWeekAgo;
+        }
+
+        return true;
+    }
+
+    function sortByScoreThenDate(data) {
+        data.sort((a, b) => {
+            const scoreDiff = (b.score || 0) - (a.score || 0);
+            if (scoreDiff !== 0) return scoreDiff;
+
+            const aDate = getScoreDate(a);
+            const bDate = getScoreDate(b);
+            const aTime = aDate ? aDate.getTime() : 0;
+            const bTime = bDate ? bDate.getTime() : 0;
+            return bTime - aTime;
+        });
+    }
 
     try {
         const ref = collection(window.db, "emodjeez_highscores");
-        
+
+        let data = [];
+
         if (hsScope === 'personal') {
-            // Filter on name, sort in memory (Firestore limitation for simple queries)
-            q = query(ref, where("name", "==", myUsername), limit(50));
-        } else {
-            q = query(ref, orderBy("score", "desc"), limit(50));
-        }
-        
-        const snapshot = await getDocs(q);
-        let data = snapshot.docs.map(d => d.data());
-        
-        // Filter by Time (Client Side is easier for this scale)
-        const now = new Date();
-        data = data.filter(d => {
-            if(!d.timestamp) return false;
-            const date = d.timestamp.toDate();
-            if (hsTab === 'today') {
-                return date.toDateString() === now.toDateString();
-            } else if (hsTab === 'week') {
-                const oneWeekAgo = new Date();
-                oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-                return date > oneWeekAgo;
+            const merged = new Map();
+
+            if (window.currentUser?.uid) {
+                const byUidQuery = query(ref, where("uid", "==", window.currentUser.uid), limit(250));
+                const byUidSnapshot = await getDocs(byUidQuery);
+                byUidSnapshot.forEach((doc) => {
+                    merged.set(doc.id, doc.data());
+                });
             }
-            return true;
-        });
-        
-        // Sort if personal (since we didn't orderBy score)
-        if (hsScope === 'personal') {
-            data.sort((a,b) => b.score - a.score);
+
+            const byNameQuery = query(ref, where("name", "==", myUsername), limit(250));
+            const byNameSnapshot = await getDocs(byNameQuery);
+            byNameSnapshot.forEach((doc) => {
+                const item = doc.data();
+                if (item.uid && window.currentUser?.uid && item.uid !== window.currentUser.uid) {
+                    return;
+                }
+                merged.set(doc.id, item);
+            });
+
+            data = Array.from(merged.values());
+        } else {
+            if (hsTab === 'alltime') {
+                const q = query(ref, orderBy("score", "desc"), limit(200));
+                const snapshot = await getDocs(q);
+                data = snapshot.docs.map(d => d.data());
+            } else {
+                const q = query(ref, orderBy("timestamp", "desc"), limit(1000));
+                const snapshot = await getDocs(q);
+                data = snapshot.docs.map(d => d.data());
+            }
         }
+
+        data = data.filter(d => d.mode === 'solo' || !d.mode);
+
+        const now = new Date();
+        if (hsTab !== 'alltime') {
+            data = data.filter(d => isWithinActiveTab(d, now));
+        }
+
+        sortByScoreThenDate(data);
         
         // Render
         if (data.length === 0) {
