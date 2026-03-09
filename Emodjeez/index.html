@@ -320,6 +320,25 @@ body {
             animation: slideUp 0.3s;
             max-height: 80vh; overflow-y: auto;
         }
+        .status-modal-content {
+            border-width: 2px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+        }
+        .status-modal-content.is-success {
+            border-color: rgba(46, 204, 113, 0.75);
+        }
+        .status-modal-content.is-error {
+            border-color: rgba(255, 107, 107, 0.75);
+        }
+        #status-modal-title {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+        #status-modal-message {
+            color: #d7dee7;
+            font-size: 1rem;
+            margin-bottom: 20px;
+        }
         .profile-btn {
             position: absolute; top: 15px; right: 15px;
             background: rgba(0,0,0,0.4); padding: 5px 15px;
@@ -450,11 +469,8 @@ body {
         <button class="btn btn-solo" onclick="startSoloGame()">
             <span>👤</span> <span id="txt-solo">Solo Run</span>
         </button>
-        <button class="btn btn-multi" onclick="showLobby()">
+        <button class="btn btn-multi" onclick="openDuelEntry()">
             <span>⚔️</span> <span id="txt-multi">1 vs 1 Duel</span>
-        </button>
-        <button id="btn-resume-duel" class="btn btn-multi" onclick="resumeActiveDuel()" style="display:none;">
-            <span>🔁</span> <span id="txt-resume-duel">Actief 1v1 hervatten</span>
         </button>
         <button class="btn btn-high" onclick="openHighscores()">
             <span>🏆</span> <span id="txt-high">Highscores</span>
@@ -475,10 +491,14 @@ body {
         <h3 style="color:var(--secondary);">1 vs 1 Duel</h3>
         
         <div id="lobby-start">
-            <p>Speel tegelijk tegen een vriend.<br>Wie het eerst een fout maakt verliest!</p>
-            <button class="btn btn-multi" onclick="createOnlineGame()">Nieuw Spel Starten</button>
+            <p id="txt-duel-desc">Speel tegelijk tegen een vriend.<br>Wie het eerst een fout maakt verliest!</p>
+            <button class="btn btn-multi" onclick="createOnlineGame()" id="btn-new-game">Nieuw Spel Starten</button>
+            <div id="active-waiting-notice" style="display:none; margin-top:12px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:12px;">
+                <p id="txt-active-waiting" style="margin:0 0 8px 0; font-size:0.9rem;">Je wacht nog op een tegenstander.</p>
+                <button class="btn btn-daily-list" onclick="resumeActiveDuel()" id="btn-open-waiting" style="width:100%;">Open wachtend duel</button>
+            </div>
             <div style="margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1);"></div>
-            <p style="font-size:0.9rem; color:#aaa;">Heb je een link ontvangen? Klik daarop om mee te doen.</p>
+            <p id="txt-invite-friend" style="font-size:0.9rem; color:#aaa;">Heb je een link ontvangen? Klik daarop om mee te doen.</p>
         </div>
 
         <div id="lobby-share" style="display:none;">
@@ -571,6 +591,7 @@ body {
         <p id="go-message" style="font-size: 1.2rem; color:#ccc; display:flex; flex-direction:column; align-items:center;">
             Dat was fout!
         </p>
+        <div id="go-duel-details" style="display:none; margin: 12px 0 18px 0; text-align:left; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 12px;"></div>
         <div class="score-pill" style="font-size:2.5rem; margin-bottom:20px;">Score: <span id="final-score">0</span></div>
         <button id="btn-share-result" class="btn btn-multi" onclick="shareGameResultWhatsapp()" style="font-size:1rem;">📱 Deel op WhatsApp</button>
         <button class="btn btn-solo" onclick="resetToHome()">Opnieuw Spelen</button>
@@ -651,6 +672,14 @@ body {
         <p id="daily-played-message" style="color:#ccc; margin-bottom:18px;">Je hebt de Daily van vandaag al gespeeld.</p>
         <button id="btn-daily-played-board" class="btn btn-daily-list" onclick="openDailyHighscoresFromPlayedModal()">Bekijk Daily Ranglijst</button>
         <button id="btn-daily-played-close" class="btn btn-back" onclick="closeDailyPlayedModal()">Sluiten</button>
+    </div>
+</div>
+
+<div id="status-modal" class="modal" onclick="if(event.target===this) closeStatusPopup()">
+    <div id="status-modal-content" class="modal-content status-modal-content">
+        <h3 id="status-modal-title" style="color:var(--secondary);">Melding</h3>
+        <p id="status-modal-message">...</p>
+        <button id="status-modal-btn" class="btn btn-back" onclick="closeStatusPopup()" style="margin:0;">OK</button>
     </div>
 </div>
 
@@ -764,8 +793,16 @@ const translations = {
         duelDesc: "Speel tegelijk tegen een vriend.<br>Wie het eerst een fout maakt verliest!",
         newGame: "Nieuw Spel Starten",
         inviteFriend: "Heb je een link ontvangen? Klik daarop om mee te doen.",
-        resumeDuel: "Actief 1v1 hervatten",
-        resumeWaiting: "1v1: wachten op tegenstander",
+        waitingNotice: "Je wacht nog op een tegenstander.",
+        waitingOpenBtn: "Open wachtend duel",
+        duelMyChoice: "Jouw keuze",
+        duelOppChoice: "Keuze tegenstander",
+        duelCorrectChoice: "Juiste antwoord",
+        duelNoChoice: "Geen keuze",
+        popupInfoTitle: "Melding",
+        popupSuccessTitle: "Gelukt",
+        popupErrorTitle: "Fout",
+        popupOk: "OK",
         gameAlreadyFinished: "Dit duel is al voorbij. Start een nieuw duel.",
         waitingOpp: "Wachten op tegenstander...",
         shareLink: "Stuur deze link naar je vriend:",
@@ -781,6 +818,7 @@ const translations = {
         win: "JIJ WINT! 🎉",
         lose: "VERLOREN... {name} wint.",
         linkCopied: "Link gekopieerd!",
+        linkCopyFailed: "Kopieren van link mislukt. Probeer opnieuw.",
         resultShared: "Resultaat klaar voor WhatsApp.",
         waText: "Ik daag je uit voor een potje Emodjeez! 🐱🚀\nWie kent de emoji's het best?\nKlik hier: ",
         dailyAlreadyPlayed: "Je hebt de Daily van vandaag al gespeeld. Score: {score}",
@@ -828,8 +866,16 @@ const translations = {
         duelDesc: "Play against a friend in real-time.<br>First one to make a mistake loses!",
         newGame: "Start New Game",
         inviteFriend: "Received a link? Click it to join.",
-        resumeDuel: "Resume active 1v1",
-        resumeWaiting: "1v1: waiting for opponent",
+        waitingNotice: "You are still waiting for an opponent.",
+        waitingOpenBtn: "Open waiting duel",
+        duelMyChoice: "Your choice",
+        duelOppChoice: "Opponent choice",
+        duelCorrectChoice: "Correct answer",
+        duelNoChoice: "No choice",
+        popupInfoTitle: "Notice",
+        popupSuccessTitle: "Success",
+        popupErrorTitle: "Error",
+        popupOk: "OK",
         gameAlreadyFinished: "This duel is already finished. Start a new duel.",
         waitingOpp: "Waiting for opponent...",
         shareLink: "Send this link to your friend:",
@@ -845,6 +891,7 @@ const translations = {
         win: "YOU WIN! 🎉",
         lose: "DEFEAT... {name} wins.",
         linkCopied: "Link copied!",
+        linkCopyFailed: "Could not copy the link. Please try again.",
         resultShared: "Result ready for WhatsApp.",
         waText: "I challenge you to a game of Emodjeez! 🐱🚀\nWho knows the emojis best?\nClick here: ",
         dailyAlreadyPlayed: "You already played today's Daily. Score: {score}",
@@ -892,8 +939,16 @@ const translations = {
         duelDesc: "Spiele gleichzeitig gegen einen Freund.<br>Wer zuerst einen Fehler macht, verliert!",
         newGame: "Neues Spiel starten",
         inviteFriend: "Hast du einen Link erhalten? Klicke darauf, um mitzuspielen.",
-        resumeDuel: "Aktives 1v1 fortsetzen",
-        resumeWaiting: "1v1: warten auf Gegner",
+        waitingNotice: "Du wartest noch auf einen Gegner.",
+        waitingOpenBtn: "Wartendes Duell öffnen",
+        duelMyChoice: "Deine Wahl",
+        duelOppChoice: "Wahl des Gegners",
+        duelCorrectChoice: "Richtige Antwort",
+        duelNoChoice: "Keine Wahl",
+        popupInfoTitle: "Hinweis",
+        popupSuccessTitle: "Erfolg",
+        popupErrorTitle: "Fehler",
+        popupOk: "OK",
         gameAlreadyFinished: "Dieses Duell ist bereits beendet. Starte ein neues Duell.",
         waitingOpp: "Warten auf Gegner...",
         shareLink: "Sende diesen Link an deinen Freund:",
@@ -909,6 +964,7 @@ const translations = {
         win: "DU HAST GEWONNEN! 🎉",
         lose: "VERLOREN... {name} gewinnt.",
         linkCopied: "Link kopiert!",
+        linkCopyFailed: "Link konnte nicht kopiert werden. Bitte erneut versuchen.",
         resultShared: "Ergebnis für WhatsApp bereit.",
         waText: "Ich fordere dich zu einer Runde Emodjeez heraus! 🐱🚀\nWer kennt die Emojis am besten?\nHier klicken: ",
         dailyAlreadyPlayed: "Du hast das heutige Daily bereits gespielt. Punktzahl: {score}",
@@ -977,11 +1033,6 @@ function applyLanguage() {
     document.getElementById('btn-daily-played-board').innerText = t.dailyPlayedBoard;
     document.getElementById('btn-daily-played-close').innerText = t.close;
     document.getElementById('txt-multi').innerText = t.multi;
-    const resumeLabel = document.getElementById('txt-resume-duel');
-    if (resumeLabel) {
-        const resumeStatus = document.getElementById('btn-resume-duel')?.dataset?.status;
-        resumeLabel.innerText = resumeStatus === 'waiting' ? t.resumeWaiting : t.resumeDuel;
-    }
     document.getElementById('txt-high').innerText = t.high;
     document.getElementById('txt-high-title').innerText = t.highTitle;
     document.getElementById('txt-daily-high-title').innerText = t.dailyHighTitle;
@@ -998,9 +1049,13 @@ function applyLanguage() {
 
     // Lobby UI vertalingen
     document.querySelector('#lobby-ui h3').innerText = t.duelTitle;
-    document.querySelector('#lobby-start p').innerHTML = t.duelDesc;
-    document.querySelector('#lobby-start .btn-multi').innerText = t.newGame;
-    document.querySelector('#lobby-start p:last-child').innerText = t.inviteFriend;
+    document.getElementById('txt-duel-desc').innerHTML = t.duelDesc;
+    document.getElementById('btn-new-game').innerText = t.newGame;
+    document.getElementById('txt-invite-friend').innerText = t.inviteFriend;
+    document.getElementById('txt-active-waiting').innerText = t.waitingNotice;
+    document.getElementById('btn-open-waiting').innerText = t.waitingOpenBtn;
+    const statusBtn = document.getElementById('status-modal-btn');
+    if (statusBtn) statusBtn.innerText = t.popupOk;
     document.querySelector('#lobby-share h3').innerText = t.waitingOpp;
     document.querySelector('#lobby-share p').innerText = t.shareLink;
     document.querySelector('#lobby-share .btn[onclick="shareWhatsapp()"]').innerText = t.shareWA;
@@ -1018,6 +1073,8 @@ function applyLanguage() {
         const btn = document.querySelector('.cat-' + i + ' .label-text');
         if (btn) btn.innerText = t['cat' + i];
     }
+
+    updateLobbyActiveState();
 }
 
 // --- GAME STATE ---
@@ -1083,39 +1140,47 @@ async function findActiveDuelForUser() {
     return candidates[0];
 }
 
-async function refreshActiveDuelButton() {
-    const btn = document.getElementById('btn-resume-duel');
-    const label = document.getElementById('txt-resume-duel');
-    if (!btn || !label) return;
+function updateLobbyActiveState() {
+    const waitingNotice = document.getElementById('active-waiting-notice');
+    if (!waitingNotice) return;
+    waitingNotice.style.display = activeDuelStatus === 'waiting' ? 'block' : 'none';
+}
 
+async function refreshActiveDuelButton() {
     if (!window.currentUser) {
-        btn.style.display = 'none';
         activeDuelId = null;
         activeDuelStatus = null;
+        updateLobbyActiveState();
         return;
     }
 
     try {
         const active = await findActiveDuelForUser();
         if (!active) {
-            btn.style.display = 'none';
             activeDuelId = null;
             activeDuelStatus = null;
+            updateLobbyActiveState();
             return;
         }
 
         activeDuelId = active.id;
         activeDuelStatus = active.data.status;
-        btn.dataset.status = activeDuelStatus;
-        const t = translations[currentLang];
-        label.innerText = activeDuelStatus === 'waiting' ? t.resumeWaiting : t.resumeDuel;
-        btn.style.display = 'block';
+        updateLobbyActiveState();
     } catch (e) {
         console.error('Active duel lookup error', e);
-        btn.style.display = 'none';
+        updateLobbyActiveState();
     }
 }
 window.refreshActiveDuelButton = refreshActiveDuelButton;
+
+async function openDuelEntry() {
+    await refreshActiveDuelButton();
+    if (activeDuelId && activeDuelStatus === 'playing') {
+        resumeActiveDuel();
+        return;
+    }
+    showLobby();
+}
 
 function resumeActiveDuel() {
     if (!activeDuelId) {
@@ -1154,6 +1219,15 @@ function setLastResultContext(mode, score) {
         emojis: [...runCorrectEmojis],
         dailyDateKey: isDailyMode ? dailyDateKey : null
     };
+}
+
+function getCategoryNameById(catId) {
+    const t = translations[currentLang] || translations.en;
+    const normalized = Number(catId);
+    if (!Number.isInteger(normalized) || normalized < 1 || normalized > 7) {
+        return t.duelNoChoice || '-';
+    }
+    return t['cat' + normalized] || (t.duelNoChoice || '-');
 }
 
 function getDailyScoreHashtag(score) {
@@ -1224,6 +1298,37 @@ function updateProfileDisplay() {
 function openNameChange() {
     document.getElementById('username-input').value = myUsername;
     document.getElementById('name-modal').style.display = 'flex';
+}
+
+function closeStatusPopup() {
+    const modal = document.getElementById('status-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function showStatusPopup(message, type = 'info') {
+    const t = translations[currentLang] || translations.en;
+    const modal = document.getElementById('status-modal');
+    const content = document.getElementById('status-modal-content');
+    const title = document.getElementById('status-modal-title');
+    const text = document.getElementById('status-modal-message');
+    if (!modal || !content || !title || !text) return;
+
+    content.classList.remove('is-success', 'is-error');
+    if (type === 'success') {
+        content.classList.add('is-success');
+        title.style.color = '#2ecc71';
+        title.innerText = t.popupSuccessTitle;
+    } else if (type === 'error') {
+        content.classList.add('is-error');
+        title.style.color = 'var(--accent)';
+        title.innerText = t.popupErrorTitle;
+    } else {
+        title.style.color = 'var(--secondary)';
+        title.innerText = t.popupInfoTitle;
+    }
+
+    text.innerText = message;
+    modal.style.display = 'flex';
 }
 
 function openDailyPlayedModal(message) {
@@ -1319,7 +1424,7 @@ async function startDailyMode() {
     const t = translations[currentLang];
     const user = await waitForCurrentUser();
     if (!user) {
-        alert("Kon geen login maken. Probeer opnieuw.");
+        showStatusPopup("Kon geen login maken. Probeer opnieuw.", 'error');
         return;
     }
 
@@ -1350,7 +1455,7 @@ async function startDailyMode() {
         });
     } catch (e) {
         console.error("Daily lock error", e);
-        alert("Daily starten mislukt. Probeer opnieuw.");
+        showStatusPopup("Daily starten mislukt. Probeer opnieuw.", 'error');
         return;
     }
 
@@ -1437,6 +1542,11 @@ function finishDailyCompleted() {
     document.getElementById('go-title').innerText = t.dailyCompletedTitle;
     document.getElementById('go-emoji').innerText = "🏆";
     document.getElementById('go-message').innerText = t.dailyCompletedText;
+    const duelDetails = document.getElementById('go-duel-details');
+    if (duelDetails) {
+        duelDetails.style.display = 'none';
+        duelDetails.innerHTML = '';
+    }
     document.getElementById('final-score').innerText = currentScore;
     setLastResultContext('daily', currentScore);
     document.getElementById('game-over-modal').style.display = 'flex';
@@ -1518,6 +1628,11 @@ function gameOverSolo(clickedCat) {
             <b style="font-size:1.1rem; text-transform:uppercase;">${translatedCatName}</b>
         </div>
     `;
+    const duelDetails = document.getElementById('go-duel-details');
+    if (duelDetails) {
+        duelDetails.style.display = 'none';
+        duelDetails.innerHTML = '';
+    }
     
     document.getElementById('final-score').innerText = currentScore;
     setLastResultContext(isDailyMode ? 'daily' : 'solo', currentScore);
@@ -1547,6 +1662,7 @@ function showLobby() {
     document.getElementById('lobby-ui').style.display = 'flex';
     document.getElementById('lobby-start').style.display = 'block';
     document.getElementById('lobby-share').style.display = 'none';
+    updateLobbyActiveState();
 }
 
 // Host Creates Game
@@ -1583,7 +1699,7 @@ async function createOnlineGame() {
         refreshActiveDuelButton();
     } catch(e) {
         console.error(e);
-        alert("Fout bij aanmaken spel.");
+        showStatusPopup("Fout bij aanmaken spel.", 'error');
     }
 }
 
@@ -1620,7 +1736,7 @@ window.checkAndJoin = async function() {
     const snapshot = await getDoc(gameRef);
 
     if (!snapshot.exists()) {
-        alert("Deze game-link is niet meer geldig.");
+        showStatusPopup("Deze game-link is niet meer geldig.", 'error');
         resetToHome();
         return;
     }
@@ -1639,12 +1755,12 @@ window.checkAndJoin = async function() {
 
     if (data.status === 'finished') {
         window.pendingInviteId = null;
-        alert(translations[currentLang].gameAlreadyFinished);
+        showStatusPopup(translations[currentLang].gameAlreadyFinished, 'error');
         return;
     }
 
     if (data.status === 'playing' && data.guestId && data.guestId !== window.currentUser.uid) {
-        alert("Dit duel is al bezig.");
+        showStatusPopup("Dit duel is al bezig.", 'error');
         resetToHome();
         return;
     }
@@ -1735,6 +1851,20 @@ function handleGameState(data) {
         document.getElementById('go-title').innerText = "DUEL OVER";
         document.getElementById('go-emoji').innerText = emoji;
         document.getElementById('go-message').innerText = msg;
+        const duelDetails = document.getElementById('go-duel-details');
+        if (duelDetails) {
+            const correctCatId = EMOJI_DB[data.currentEmojiIdx] ? EMOJI_DB[data.currentEmojiIdx].c : null;
+            const myChoice = myMove ? getCategoryNameById(myMove.categoryId) : trans.duelNoChoice;
+            const oppChoice = oppMove ? getCategoryNameById(oppMove.categoryId) : trans.duelNoChoice;
+            const correctChoice = getCategoryNameById(correctCatId);
+
+            duelDetails.innerHTML = [
+                `<div><strong>${trans.duelMyChoice}:</strong> ${myChoice}</div>`,
+                `<div><strong>${trans.duelOppChoice}:</strong> ${oppChoice}</div>`,
+                `<div><strong>${trans.duelCorrectChoice}:</strong> ${correctChoice}</div>`
+            ].join('');
+            duelDetails.style.display = 'block';
+        }
         document.getElementById('final-score').innerText = myScore;
         setLastResultContext('duel', myScore);
         document.getElementById('game-over-modal').style.display = 'flex';
@@ -1765,18 +1895,23 @@ async function handleMultiplayerMove(catId) {
     const field = playerRole === 'host' ? 'hostMove' : 'guestMove';
     
     await updateDoc(doc(window.db, "emodjeez_games", gameId), {
-        [field]: { correct: correct, timestamp: Date.now() }
+        [field]: { correct: correct, categoryId: catId, timestamp: Date.now() }
     });
     
     document.getElementById('status-message').innerText = t.statusSent;
 }
 
 // Update de deel-functies
-function copyLink() {
+async function copyLink() {
     const t = translations[currentLang];
     const url = window.location.origin + window.location.pathname + "?game=" + gameId;
-    navigator.clipboard.writeText(url);
-    alert(t.linkCopied);
+    try {
+        await navigator.clipboard.writeText(url);
+        showStatusPopup(t.linkCopied, 'success');
+    } catch (e) {
+        console.error('Copy link failed', e);
+        showStatusPopup(t.linkCopyFailed, 'error');
+    }
 }
 
 function shareWhatsapp() {
