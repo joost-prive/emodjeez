@@ -1833,29 +1833,34 @@ function waitForGuest() {
 
 // Guest Joins (called from init)
 window.checkAndJoin = async function() {
-    if(!window.currentUser || !window.pendingInviteId) return;
-    
-    if(!myUsername || myUsername === "Gast") { 
-        openNameChange(); 
-        // Hook to retry join after save
+    if (!window.currentUser || !window.pendingInviteId) return;
+
+    if (!myUsername || myUsername === "Gast") {
+        openNameChange();
+        // Hook to retry join after name is saved
         const oldSave = window.saveUsername;
         window.saveUsername = function() {
-            oldSave(); // call original
-            setTimeout(window.checkAndJoin, 500); // retry join
-        }
-        return; 
+            oldSave();
+            setTimeout(window.checkAndJoin, 500);
+        };
+        return;
     }
 
-    gameId = window.pendingInviteId;
+    // Lees het gameId uit pendingInviteId en wis het meteen zodat dubbele calls niets doen
+    const joiningGameId = window.pendingInviteId;
     window.pendingInviteId = null;
-    playerRole = 'guest';
-    clearGameSubscription();
-    isEvaluatingRound = false;
-    runCorrectEmojis = [];
 
-    const { doc, updateDoc, getDoc } = window.firebaseFuncs;
-    const gameRef = doc(window.db, "emodjeez_games", gameId);
-    const snapshot = await getDoc(gameRef);
+    // Haal het speldocument op VOOR we de huidige subscription verbreken
+    const { doc, getDoc, runTransaction } = window.firebaseFuncs;
+    const gameRef = doc(window.db, "emodjeez_games", joiningGameId);
+
+    let snapshot;
+    try {
+        snapshot = await getDoc(gameRef);
+    } catch (e) {
+        showStatusPopup("Kon het spel niet ophalen. Probeer opnieuw.", 'error');
+        return;
+    }
 
     if (!snapshot.exists()) {
         showStatusPopup("Deze game-link is niet meer geldig.", 'error');
@@ -1866,39 +1871,80 @@ window.checkAndJoin = async function() {
     const data = snapshot.data();
     const myUid = window.currentUser.uid;
 
+    // Speler zit al in dit spel (host opent eigen link, of guest opent link opnieuw)
     if (data.hostId === myUid || data.guestId === myUid) {
-        gameId = window.pendingInviteId;
-        window.pendingInviteId = null;
+        if (data.status === 'finished') {
+            showStatusPopup(translations[currentLang].gameAlreadyFinished, 'error');
+            resetToHome();
+            return;
+        }
+        // Re-join het lopende spel zonder iets te verbreken totdat we zeker zijn
+        gameId = joiningGameId;
         playerRole = data.hostId === myUid ? 'host' : 'guest';
         runCorrectEmojis = [];
+        clearGameSubscription();
+        isEvaluatingRound = false;
         subscribeToGame();
         return;
     }
 
     if (data.status === 'finished') {
-        window.pendingInviteId = null;
         showStatusPopup(translations[currentLang].gameAlreadyFinished, 'error');
+        resetToHome();
         return;
     }
 
-    if (data.status === 'playing' && data.guestId && data.guestId !== window.currentUser.uid) {
+    if (data.status !== 'waiting') {
+        // 'playing' met een andere guest erin, of andere onbekende status
         showStatusPopup("Dit duel is al bezig.", 'error');
         resetToHome();
         return;
     }
 
-    await updateDoc(gameRef, {
-        guestId: window.currentUser.uid,
-        guestName: myUsername,
-        status: "playing",
-        hostMove: null,
-        guestMove: null
-    });
+    // Sluit je aan als guest via een transaction zodat twee spelers die tegelijk
+    // dezelfde link klikken niet allebei kunnen joinen (race condition fix)
+    try {
+        await runTransaction(window.db, async (transaction) => {
+            const freshSnap = await transaction.get(gameRef);
+            if (!freshSnap.exists()) {
+                const err = new Error('notfound'); err.code = 'notfound'; throw err;
+            }
+            const d = freshSnap.data();
+            if (d.guestId) {
+                const err = new Error('full'); err.code = 'full'; throw err;
+            }
+            if (d.status !== 'waiting') {
+                const err = new Error('notwaiting'); err.code = 'notwaiting'; throw err;
+            }
+            transaction.update(gameRef, {
+                guestId: myUid,
+                guestName: myUsername,
+                status: "playing",
+                hostMove: null,
+                guestMove: null
+            });
+        });
+    } catch (e) {
+        if (e.code === 'notfound') {
+            showStatusPopup("Deze game-link is niet meer geldig.", 'error');
+        } else if (e.code === 'full' || e.code === 'notwaiting') {
+            showStatusPopup("Dit duel is al bezig.", 'error');
+        } else {
+            showStatusPopup("Kon niet deelnemen. Probeer opnieuw.", 'error');
+        }
+        resetToHome();
+        return;
+    }
 
+    // Pas NU de huidige subscription verbreken en de nieuwe starten
+    gameId = joiningGameId;
+    playerRole = 'guest';
+    clearGameSubscription();
+    isEvaluatingRound = false;
+    runCorrectEmojis = [];
     activeDuelId = gameId;
     activeDuelStatus = 'playing';
     refreshActiveDuelButton();
-    
     subscribeToGame();
 }
 
