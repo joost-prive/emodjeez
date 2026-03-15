@@ -2018,18 +2018,33 @@ function updateScoreUI() {
     document.getElementById('score-val').innerText = currentScore;
 }
 
-function quitGame() {
+function resetGameState() {
     gameActive = false;
+    isMultiplayer = false;
+    isDailyMode = false;
+    isEvaluatingRound = false;
+    duelScoreSaved = false;
+    gameId = null;
+    playerRole = null;
+    activeDuelId = null;
+    activeDuelStatus = null;
+    runCorrectEmojis = [];
+    clearGameSubscription();
+    document.getElementById('game-screen').style.display = 'none';
+    document.getElementById('game-over-modal').style.display = 'none';
+}
+
+function quitGame() {
     if (isMultiplayer && gameId) {
+        const currentGameId = gameId;
         const { updateDoc, doc } = window.firebaseFuncs;
-        updateDoc(doc(window.db, "emodjeez_games", gameId), { status: 'abandoned' })
-            .finally(() => {
-                clearGameSubscription();
-                location.reload();
-            });
+        resetGameState();
+        updateDoc(doc(window.db, "emodjeez_games", currentGameId), { status: 'abandoned' })
+            .catch(e => console.error("Abandon error", e));
+        showLobby();
     } else {
-        clearGameSubscription();
-        location.reload();
+        resetGameState();
+        document.getElementById('start-screen').style.display = 'flex';
     }
 }
 
@@ -2226,13 +2241,10 @@ function handleGameState(data) {
     activeDuelStatus = data.status;
     
     if (data.status === 'abandoned') {
-        gameActive = false;
-        activeDuelId = null;
-        activeDuelStatus = null;
-        clearGameSubscription();
-        showStatusPopup(trans.duelAbandoned, 'info');
+        resetGameState();
         refreshActiveDuelButton();
-        setTimeout(() => location.reload(), 2500);
+        showStatusPopup(trans.duelAbandoned, 'info');
+        showLobby();
         return;
     }
 
