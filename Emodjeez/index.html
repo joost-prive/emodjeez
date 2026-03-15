@@ -62,22 +62,36 @@
         :root {
             --bg-dark: #2c1e3e;
             --bg-gradient: linear-gradient(135deg, #1e3799 0%, #0c2461 100%);
-            --primary: #FFD700; /* Emoji Yellow */
+            --primary: #FFD700;
             --secondary: #00d2d3;
             --accent: #ff6b6b;
             --surface: rgba(255, 255, 255, 0.1);
             --surface-light: rgba(255, 255, 255, 0.2);
             --text-main: #ffffff;
+            --text-muted: rgba(255,255,255,0.5);
+            --modal-bg: rgba(0,0,0,0.9);
+            --modal-surface: #1e2a45;
             --shadow: 0 8px 20px rgba(0,0,0,0.4);
-            
+
             /* Category Colors */
-            --cat-1: #fad390; 
-            --cat-2: #78e08f; 
-            --cat-3: #e55039; 
-            --cat-4: #4a69bd; 
-            --cat-5: #60a3bc; 
-            --cat-6: #f6b93b; 
-            --cat-7: #82ccdd; 
+            --cat-1: #fad390;
+            --cat-2: #78e08f;
+            --cat-3: #e55039;
+            --cat-4: #4a69bd;
+            --cat-5: #60a3bc;
+            --cat-6: #f6b93b;
+            --cat-7: #82ccdd;
+        }
+
+        body.light {
+            --bg-gradient: linear-gradient(135deg, #74b9ff 0%, #a29bfe 100%);
+            --surface: rgba(255, 255, 255, 0.65);
+            --surface-light: rgba(255, 255, 255, 0.85);
+            --text-main: #1a1a2e;
+            --text-muted: rgba(0,0,0,0.45);
+            --modal-bg: rgba(0,0,0,0.6);
+            --modal-surface: #f0f4ff;
+            --shadow: 0 8px 20px rgba(0,0,0,0.15);
         }
 		
 		/* Voorkom browser-specifiek gedrag voor een native app-gevoel */
@@ -310,15 +324,16 @@ body {
         /* --- Modals --- */
         .modal {
             display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.9); z-index: 100;
+            background: var(--modal-bg); z-index: 100;
             backdrop-filter: blur(8px); align-items: center; justify-content: center;
         }
         .modal-content {
-            background: #2f3640; padding: 30px; border-radius: 20px;
+            background: var(--modal-surface); padding: 30px; border-radius: 20px;
             width: 90%; max-width: 400px; text-align: center;
             border: 1px solid rgba(255,255,255,0.1);
             animation: slideUp 0.3s;
             max-height: 80vh; overflow-y: auto;
+            color: var(--text-main);
         }
         .status-modal-content {
             border-width: 2px;
@@ -339,11 +354,80 @@ body {
             font-size: 1rem;
             margin-bottom: 20px;
         }
-        .profile-btn {
+        /* --- Top icons bar --- */
+        .top-icons-bar {
             position: absolute; top: 15px; right: 15px;
-            background: rgba(0,0,0,0.4); padding: 5px 15px;
-            border-radius: 20px; cursor: pointer; font-size: 0.9rem;
-            display: flex; align-items: center; gap: 5px; border: 1px solid rgba(255,255,255,0.2);
+            display: flex; align-items: center; gap: 8px; z-index: 20;
+        }
+        .icon-btn {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px; cursor: pointer; font-size: 0.85rem;
+            display: flex; align-items: center; gap: 5px; padding: 5px 12px;
+            color: var(--text-main); font-family: 'Fredoka', sans-serif; font-weight: 600;
+            transition: background 0.15s;
+        }
+        .icon-btn:active { background: rgba(0,0,0,0.6); }
+
+        /* --- Menu dual-row (solo + 1v1 naast elkaar) --- */
+        .menu-dual-row {
+            display: flex; gap: 12px; width: 100%; margin-bottom: 0;
+        }
+        .menu-dual-row .btn {
+            flex: 1; font-size: 1rem; padding: 16px 8px; margin-bottom: 0;
+        }
+
+        /* --- Kleine secondary link onder speelknoppen --- */
+        .menu-secondary-row {
+            display: flex; justify-content: center; gap: 20px;
+            margin-top: 4px; margin-bottom: 12px;
+        }
+        .btn-link-secondary {
+            background: none; border: none; cursor: pointer;
+            color: var(--text-muted); font-family: 'Fredoka', sans-serif;
+            font-size: 0.9rem; font-weight: 600; padding: 4px 8px;
+            text-decoration: underline; text-underline-offset: 3px;
+            transition: color 0.15s;
+        }
+        .btn-link-secondary:hover { color: var(--text-main); }
+
+        /* --- Menu divider --- */
+        .menu-divider {
+            width: 100%; height: 1px;
+            background: rgba(255,255,255,0.1);
+            margin: 8px 0 16px 0;
+        }
+
+        /* --- Settings modal --- */
+        .settings-section {
+            text-align: left; margin-bottom: 20px;
+        }
+        .settings-label {
+            font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.8px; color: var(--secondary); margin-bottom: 8px;
+        }
+        .theme-toggle-bar {
+            display: flex; gap: 8px;
+        }
+        .theme-btn {
+            flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.2);
+            color: var(--text-main); padding: 10px; border-radius: 10px;
+            cursor: pointer; font-weight: 600; font-family: 'Fredoka', sans-serif;
+            font-size: 0.95rem; transition: background 0.15s;
+        }
+        .theme-btn.active { background: var(--secondary); color: #000; border-color: var(--secondary); }
+        .settings-flags { display: flex; gap: 8px; }
+        .settings-name-row { display: flex; gap: 8px; align-items: center; }
+        .settings-name-row input {
+            flex: 1; font-size: 1rem; padding: 10px; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1);
+            color: var(--text-main); font-family: 'Fredoka', sans-serif; text-align: left;
+        }
+        body.light .settings-name-row input { background: rgba(0,0,0,0.08); }
+        .settings-name-row .btn-save-name {
+            background: var(--secondary); border: none; border-radius: 10px;
+            padding: 10px 16px; color: #000; font-weight: 700;
+            font-family: 'Fredoka', sans-serif; cursor: pointer; font-size: 0.95rem;
+            white-space: nowrap;
         }
 
         /* --- Highscore List --- */
@@ -379,12 +463,8 @@ body {
         .correct-pulse { animation: popIn 0.3s; border-color: var(--secondary) !important; box-shadow: 0 0 30px var(--secondary); }
 		
 .lang-selector-v2 {
-    position: absolute;
-    top: 15px;
-    left: 15px;
-    z-index: 100;
     display: flex;
-    gap: 10px;
+    gap: 6px;
 }
 
 .lang-flag {
@@ -421,68 +501,46 @@ body {
 </head>
 <body>
 
-<div class="lang-selector-v2">
-    <button class="lang-flag" onclick="changeLanguage('nl')" title="Nederlands">
-        <img src="https://flagcdn.com/w40/nl.png" alt="NL">
-    </button>
-    <button class="lang-flag" onclick="changeLanguage('en')" title="English">
-        <img src="https://flagcdn.com/w40/us.png" alt="EN">
-    </button>
-    <button class="lang-flag" onclick="changeLanguage('de')" title="Deutsch">
-        <img src="https://flagcdn.com/w40/de.png" alt="DE">
-    </button>
-</div>
-
 <div class="brand-header">
- <img src="logo.webp" 
-     alt="Emodjeez Logo" 
-     class="main-logo-img" 
-     width="350" 
-     height="350"
-     fetchpriority="high"
-     decoding="async">   <div class="app-title" style="display:none; font-size: 2rem; font-weight:900; color:#ffcc00;">EMODJEEZ</div> 
-    
-<div class="app-subtitle">
-    Emoji's kennen we allemaal!<br>
-    Maar onder welke categorie ze vallen bij WhatsApp?<br>
-    Djeez, best moeilijk!
-</div>
+    <img src="logo.webp"
+         alt="Emodjeez Logo"
+         class="main-logo-img"
+         width="350" height="350"
+         fetchpriority="high" decoding="async">
 </div>
 
-<div class="profile-btn" onclick="openNameChange()">
-    <span>👤</span> <span id="profile-name">Gast</span> <span>✏️</span>
+<div class="top-icons-bar">
+    <button class="icon-btn" onclick="openRules()" id="btn-rules-icon" title="Spelregels">ℹ️</button>
+    <button class="icon-btn" onclick="openSettings()" title="Instellingen">⚙️ <span id="profile-name">Gast</span></button>
 </div>
 
 <div id="start-screen">
     <div class="menu-card">
-        <h2 style="margin: 0 0 20px 0; color: #fff;">START GAME</h2>
 
-        <div class="menu-section-label" id="txt-section-daily">Daily</div>
         <button class="btn btn-daily" onclick="startDailyMode()">
             <span>📅</span> <span id="txt-daily">Daily</span>
         </button>
-        <button class="btn btn-daily-list" onclick="openDailyHighscores()">
-            <span>🏆</span> <span id="txt-daily-rank">Daily Ranglijst</span>
-        </button>
+        <div class="menu-secondary-row">
+            <button class="btn-link-secondary" onclick="openDailyHighscores()">🏆 <span id="txt-daily-rank">Ranglijst</span> ›</button>
+        </div>
 
-        <div class="menu-section-label" id="txt-section-regular">Regular</div>
-        <button class="btn btn-solo" onclick="startSoloGame()">
-            <span>👤</span> <span id="txt-solo">Solo Run</span>
-        </button>
-        <button class="btn btn-multi" onclick="openDuelEntry()">
-            <span>⚔️</span> <span id="txt-multi">1 vs 1 Duel</span>
-        </button>
-        <button class="btn btn-high" onclick="openHighscores()">
-            <span>🏆</span> <span id="txt-high">Highscores</span>
-        </button>
+        <div class="menu-divider"></div>
 
-        <button class="btn btn-rules" onclick="openRules()">
-            <span>ℹ️</span> <span id="txt-rules">Spelregels</span>
-        </button>
+        <div class="menu-dual-row">
+            <button class="btn btn-solo" onclick="startSoloGame()">
+                <span>👤</span> <span id="txt-solo">Solo</span>
+            </button>
+            <button class="btn btn-multi" onclick="openDuelEntry()">
+                <span>⚔️</span> <span id="txt-multi">1 vs 1</span>
+            </button>
+        </div>
+        <div class="menu-secondary-row">
+            <button class="btn-link-secondary" onclick="openHighscores()">🏆 <span id="txt-high">Scores</span> ›</button>
+        </div>
+
     </div>
-	<div style="margin-top: 30px; font-size: 0.7rem; opacity: 0.5; text-align: center; font-family: sans-serif;">
-        © 2026 Emodjeez - v1.0.0<br>
-        Created by ViaAventura
+    <div style="margin-top: 20px; font-size: 0.7rem; opacity: 0.4; text-align: center; font-family: sans-serif;">
+        © 2026 Emodjeez - v1.0.0<br>Created by ViaAventura
     </div>
 </div>
 
@@ -614,6 +672,12 @@ body {
             <button class="tab-btn" onclick="switchTab('week', this)">Week</button>
             <button class="tab-btn" onclick="switchTab('alltime', this)">Alltime</button>
         </div>
+        <div class="tab-bar" id="hs-mode-bar">
+            <button class="tab-btn active" onclick="switchMode('all', this)" id="hs-mode-all">Alles</button>
+            <button class="tab-btn" onclick="switchMode('solo', this)" id="hs-mode-solo">👤 Solo</button>
+            <button class="tab-btn" onclick="switchMode('daily', this)" id="hs-mode-daily">📅 Daily</button>
+            <button class="tab-btn" onclick="switchMode('duel', this)" id="hs-mode-duel">⚔️ 1v1</button>
+        </div>
 
         <div id="hs-list" style="max-height: 300px; overflow-y: auto;">Laden...</div>
     </div>
@@ -660,6 +724,60 @@ body {
         <h3>Wie ben jij?</h3>
         <input type="text" id="username-input" placeholder="Je naam..." maxlength="12" style="font-size:1.2rem; padding:10px; width:80%; text-align:center; border-radius:10px; border:none; margin-bottom:20px;">
         <button class="btn btn-solo" onclick="saveUsername()">Opslaan</button>
+    </div>
+</div>
+
+<div id="settings-modal" class="modal" onclick="if(event.target===this) closeSettings()">
+    <div class="modal-content" style="text-align:left; max-width:380px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 style="margin:0; color:var(--primary);" id="txt-settings-title">⚙️ Instellingen</h2>
+            <span style="font-size:2rem; cursor:pointer;" onclick="closeSettings()">&times;</span>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-label" id="txt-settings-name">Naam</div>
+            <div class="settings-name-row">
+                <input type="text" id="settings-username-input" placeholder="Je naam..." maxlength="12">
+                <button class="btn-save-name" onclick="saveSettingsUsername()" id="txt-settings-save">Opslaan</button>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-label" id="txt-settings-theme">Thema</div>
+            <div class="theme-toggle-bar">
+                <button class="theme-btn active" id="btn-theme-dark" onclick="setTheme('dark')" id="txt-theme-dark">🌙 Donker</button>
+                <button class="theme-btn" id="btn-theme-light" onclick="setTheme('light')" id="txt-theme-light">☀️ Licht</button>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-label" id="txt-settings-lang">Taal</div>
+            <div class="lang-selector-v2">
+                <button class="lang-flag" onclick="changeLanguage('nl')" title="Nederlands">
+                    <img src="https://flagcdn.com/w40/nl.png" alt="NL">
+                </button>
+                <button class="lang-flag" onclick="changeLanguage('en')" title="English">
+                    <img src="https://flagcdn.com/w40/us.png" alt="EN">
+                </button>
+                <button class="lang-flag" onclick="changeLanguage('de')" title="Deutsch">
+                    <img src="https://flagcdn.com/w40/de.png" alt="DE">
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="welcome-modal" class="modal">
+    <div class="modal-content" style="text-align:left; max-width:400px;">
+        <h2 style="text-align:center; color:var(--primary); margin-top:0;" id="txt-welcome-title">👋 Welkom bij Emodjeez!</h2>
+        <div id="welcome-rules-content" style="margin-bottom:20px; color: var(--text-main);"></div>
+        <div style="border-top:1px solid rgba(255,255,255,0.15); padding-top:16px; margin-top:4px;">
+            <div class="settings-label" id="txt-welcome-name-label">Wat is jouw naam?</div>
+            <div class="settings-name-row" style="margin-top:8px;">
+                <input type="text" id="welcome-username-input" placeholder="Je naam..." maxlength="12">
+                <button class="btn-save-name" onclick="saveWelcomeUsername()" id="txt-welcome-play">Spelen! 🎮</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -922,6 +1040,20 @@ const translations = {
         duelCorrectChoice: "Juiste antwoord",
         duelNoChoice: "Geen keuze",
         duelAbandoned: "Het duel is afgebroken.",
+        settingsTitle: "⚙️ Instellingen",
+        settingsName: "Naam",
+        settingsSave: "Opslaan",
+        settingsTheme: "Thema",
+        settingsThemeDark: "🌙 Donker",
+        settingsThemeLight: "☀️ Licht",
+        settingsLang: "Taal",
+        welcomeTitle: "👋 Welkom bij Emodjeez!",
+        welcomeNameLabel: "Wat is jouw naam?",
+        welcomePlay: "Spelen! 🎮",
+        hsModeAll: "Alles",
+        hsModeDaily: "📅 Daily",
+        hsModeDuel: "⚔️ 1v1",
+        hsModeSolo: "👤 Solo",
         popupInfoTitle: "Melding",
         popupSuccessTitle: "Gelukt",
         popupErrorTitle: "Fout",
@@ -996,6 +1128,20 @@ const translations = {
         duelCorrectChoice: "Correct answer",
         duelNoChoice: "No choice",
         duelAbandoned: "The duel was abandoned.",
+        settingsTitle: "⚙️ Settings",
+        settingsName: "Name",
+        settingsSave: "Save",
+        settingsTheme: "Theme",
+        settingsThemeDark: "🌙 Dark",
+        settingsThemeLight: "☀️ Light",
+        settingsLang: "Language",
+        welcomeTitle: "👋 Welcome to Emodjeez!",
+        welcomeNameLabel: "What is your name?",
+        welcomePlay: "Play! 🎮",
+        hsModeAll: "All",
+        hsModeDaily: "📅 Daily",
+        hsModeDuel: "⚔️ 1v1",
+        hsModeSolo: "👤 Solo",
         popupInfoTitle: "Notice",
         popupSuccessTitle: "Success",
         popupErrorTitle: "Error",
@@ -1069,6 +1215,21 @@ const translations = {
         duelOppChoice: "Wahl des Gegners",
         duelCorrectChoice: "Richtige Antwort",
         duelNoChoice: "Keine Wahl",
+        duelAbandoned: "Das Duell wurde abgebrochen.",
+        settingsTitle: "⚙️ Einstellungen",
+        settingsName: "Name",
+        settingsSave: "Speichern",
+        settingsTheme: "Design",
+        settingsThemeDark: "🌙 Dunkel",
+        settingsThemeLight: "☀️ Hell",
+        settingsLang: "Sprache",
+        welcomeTitle: "👋 Willkommen bei Emodjeez!",
+        welcomeNameLabel: "Wie heißt du?",
+        welcomePlay: "Spielen! 🎮",
+        hsModeAll: "Alles",
+        hsModeDaily: "📅 Daily",
+        hsModeDuel: "⚔️ 1v1",
+        hsModeSolo: "👤 Solo",
         popupInfoTitle: "Hinweis",
         popupSuccessTitle: "Erfolg",
         popupErrorTitle: "Fehler",
@@ -1144,23 +1305,41 @@ function changeLanguage(lang) {
 
 function applyLanguage() {
     const t = translations[currentLang];
-    
+
     // Titels & Menu
-    document.querySelector('.app-subtitle').innerHTML = t.subtitle;
-    document.querySelector('#start-screen h2').innerText = t.start;
-    document.getElementById('txt-section-daily').innerText = `${t.sectionDaily} #${getDailyNumber(getUtcDateKey())}`;
-    document.getElementById('txt-section-regular').innerText = t.sectionRegular;
-    document.getElementById('txt-solo').innerText = t.solo;
-    document.getElementById('txt-daily').innerText = t.daily;
+    document.getElementById('txt-daily').innerText = `${t.sectionDaily} #${getDailyNumber(getUtcDateKey())}`;
     document.getElementById('txt-daily-rank').innerText = t.dailyRank;
     document.getElementById('txt-daily-played-title').innerText = t.dailyPlayedTitle;
     document.getElementById('btn-daily-played-board').innerText = t.dailyPlayedBoard;
     document.getElementById('btn-daily-played-close').innerText = t.close;
+    document.getElementById('txt-solo').innerText = t.solo;
     document.getElementById('txt-multi').innerText = t.multi;
     document.getElementById('txt-high').innerText = t.high;
     document.getElementById('txt-high-title').innerText = t.highTitle;
     document.getElementById('txt-daily-high-title').innerText = t.dailyHighTitle;
-    document.getElementById('txt-rules').innerText = t.rules;
+
+    // Settings modal
+    document.getElementById('txt-settings-title').innerText = t.settingsTitle;
+    document.getElementById('txt-settings-name').innerText = t.settingsName;
+    document.getElementById('txt-settings-save').innerText = t.settingsSave;
+    document.getElementById('txt-settings-theme').innerText = t.settingsTheme;
+    document.getElementById('btn-theme-dark').innerText = t.settingsThemeDark;
+    document.getElementById('btn-theme-light').innerText = t.settingsThemeLight;
+    document.getElementById('txt-settings-lang').innerText = t.settingsLang;
+    updateThemeButtons();
+
+    // Welcome modal
+    document.getElementById('txt-welcome-title').innerText = t.welcomeTitle;
+    document.getElementById('txt-welcome-name-label').innerText = t.welcomeNameLabel;
+    document.getElementById('txt-welcome-play').innerText = t.welcomePlay;
+    const welcomeRules = document.getElementById('welcome-rules-content');
+    if (welcomeRules && welcomeRules.innerHTML) welcomeRules.innerHTML = t.rulesText;
+
+    // Highscore mode bar
+    document.getElementById('hs-mode-all').innerText = t.hsModeAll;
+    document.getElementById('hs-mode-solo').innerText = t.hsModeSolo;
+    document.getElementById('hs-mode-daily').innerText = t.hsModeDaily;
+    document.getElementById('hs-mode-duel').innerText = t.hsModeDuel;
     
     // In-game & Modals algemeen
     document.querySelector('.game-instruction').innerText = t.instruction;
@@ -1220,6 +1399,7 @@ let lastResultContext = null;
 let isEvaluatingRound = false;
 let activeDuelId = null;
 let activeDuelStatus = null;
+let duelScoreSaved = false;
 const DAILY_EMOJI_COUNT = 200;
 const DAILY_NUMBER_BASE_DATE_KEY = '2026-03-03';
 
@@ -1406,9 +1586,11 @@ function shareGameResultWhatsapp() {
 
 // --- INITIALIZATION ---
 window.onload = () => {
+    applyTheme();
     initLanguage();
     updateProfileDisplay();
     refreshActiveDuelButton();
+    showWelcomeIfNeeded();
     // Check if user followed a link
     if (window.pendingInviteId) {
         window.checkAndJoin();
@@ -1416,12 +1598,74 @@ window.onload = () => {
 };
 
 function updateProfileDisplay() {
-    document.getElementById('profile-name').innerText = myUsername;
+    const el = document.getElementById('profile-name');
+    if (el) el.innerText = myUsername;
+    const settingsInput = document.getElementById('settings-username-input');
+    if (settingsInput) settingsInput.value = myUsername;
 }
 
 function openNameChange() {
     document.getElementById('username-input').value = myUsername;
     document.getElementById('name-modal').style.display = 'flex';
+}
+
+// --- SETTINGS ---
+function openSettings() {
+    document.getElementById('settings-username-input').value = myUsername;
+    updateThemeButtons();
+    document.getElementById('settings-modal').style.display = 'flex';
+}
+
+function closeSettings() {
+    document.getElementById('settings-modal').style.display = 'none';
+}
+
+function saveSettingsUsername() {
+    const val = document.getElementById('settings-username-input').value.trim();
+    if (!val) return;
+    document.getElementById('username-input').value = val;
+    saveUsername();
+    closeSettings();
+}
+
+// --- THEMA ---
+function applyTheme() {
+    const saved = localStorage.getItem('emodjeez-theme') || 'dark';
+    if (saved === 'light') {
+        document.body.classList.add('light');
+    } else {
+        document.body.classList.remove('light');
+    }
+    updateThemeButtons();
+}
+
+function setTheme(theme) {
+    localStorage.setItem('emodjeez-theme', theme);
+    applyTheme();
+}
+
+function updateThemeButtons() {
+    const saved = localStorage.getItem('emodjeez-theme') || 'dark';
+    const darkBtn = document.getElementById('btn-theme-dark');
+    const lightBtn = document.getElementById('btn-theme-light');
+    if (darkBtn) darkBtn.classList.toggle('active', saved === 'dark');
+    if (lightBtn) lightBtn.classList.toggle('active', saved === 'light');
+}
+
+// --- WELKOMST-MODAL (eerste keer spelen) ---
+function showWelcomeIfNeeded() {
+    if (localStorage.getItem('emodjeez_username')) return;
+    const t = translations[currentLang] || translations.en;
+    document.getElementById('welcome-rules-content').innerHTML = t.rulesText;
+    document.getElementById('welcome-modal').style.display = 'flex';
+}
+
+function saveWelcomeUsername() {
+    const val = document.getElementById('welcome-username-input').value.trim();
+    if (!val) return;
+    document.getElementById('username-input').value = val;
+    saveUsername();
+    document.getElementById('welcome-modal').style.display = 'none';
 }
 
 function closeStatusPopup() {
@@ -1654,6 +1898,7 @@ async function finalizeDailyResult(score) {
             playedAt: serverTimestamp(),
             clientFinishedTimestamp: Date.now()
         });
+        saveHighscore(score, 'daily');
     } catch (e) {
         console.error("Daily finalize error", e);
     }
@@ -1808,6 +2053,7 @@ async function createOnlineGame() {
     try {
         clearGameSubscription();
         isEvaluatingRound = false;
+        duelScoreSaved = false;
         runCorrectEmojis = [];
         const docRef = await addDoc(collection(window.db, "emodjeez_games"), {
             hostId: window.currentUser.uid,
@@ -2024,6 +2270,11 @@ function handleGameState(data) {
         activeDuelId = null;
         activeDuelStatus = null;
         refreshActiveDuelButton();
+        if (!duelScoreSaved) {
+            duelScoreSaved = true;
+            const myScoreForHs = isHost ? data.hostScore : data.guestScore;
+            saveHighscore(myScoreForHs, 'duel');
+        }
         let msg = "";
         let emoji = "";
         
@@ -2212,6 +2463,7 @@ async function saveHighscore(score, mode) {
 
 let hsScope = 'global';
 let hsTab = 'today';
+let hsMode = 'all';
 let dailyHsDateKey = getUtcDateKey();
 let dailyAvailableDateKeys = [];
 
@@ -2228,14 +2480,21 @@ function openDailyHighscores() {
 
 function switchScope(scope, btn) {
     hsScope = scope;
-    document.querySelectorAll('.scope-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#hs-scope-bar .scope-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     loadHighscores();
 }
 
 function switchTab(tab, btn) {
     hsTab = tab;
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#hs-tab-bar .tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadHighscores();
+}
+
+function switchMode(mode, btn) {
+    hsMode = mode;
+    document.querySelectorAll('#hs-mode-bar .tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     loadHighscores();
 }
@@ -2325,7 +2584,13 @@ async function loadHighscores() {
             }
         }
 
-        data = data.filter(d => d.mode === 'solo' || !d.mode);
+        if (hsMode === 'all') {
+            data = data.filter(d => d.mode === 'solo' || d.mode === 'daily' || d.mode === 'duel' || !d.mode);
+        } else if (hsMode === 'solo') {
+            data = data.filter(d => d.mode === 'solo' || !d.mode);
+        } else {
+            data = data.filter(d => d.mode === hsMode);
+        }
 
         const now = new Date();
         if (hsTab !== 'alltime') {
@@ -2341,12 +2606,14 @@ async function loadHighscores() {
         }
         
         listEl.innerHTML = "";
+        const modeIcon = { solo: '👤', daily: '📅', duel: '⚔️' };
         data.slice(0, 20).forEach((item, idx) => {
             const row = document.createElement('div');
             row.className = 'hs-row';
+            const badge = (hsMode === 'all') ? `<span style="font-size:0.75rem; opacity:0.55; margin-left:4px;">${modeIcon[item.mode] || '👤'}</span>` : '';
             row.innerHTML = `
                 <div class="hs-rank">${idx+1}</div>
-                <div class="hs-name">${item.name}</div>
+                <div class="hs-name">${item.name}${badge}</div>
                 <div class="hs-score">${item.score}</div>
             `;
             listEl.appendChild(row);
