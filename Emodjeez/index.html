@@ -921,6 +921,7 @@ const translations = {
         duelOppChoice: "Keuze tegenstander",
         duelCorrectChoice: "Juiste antwoord",
         duelNoChoice: "Geen keuze",
+        duelAbandoned: "Het duel is afgebroken.",
         popupInfoTitle: "Melding",
         popupSuccessTitle: "Gelukt",
         popupErrorTitle: "Fout",
@@ -994,6 +995,7 @@ const translations = {
         duelOppChoice: "Opponent choice",
         duelCorrectChoice: "Correct answer",
         duelNoChoice: "No choice",
+        duelAbandoned: "The duel was abandoned.",
         popupInfoTitle: "Notice",
         popupSuccessTitle: "Success",
         popupErrorTitle: "Error",
@@ -1773,8 +1775,17 @@ function updateScoreUI() {
 
 function quitGame() {
     gameActive = false;
-    if(unsubscribeGame) unsubscribeGame();
-    location.reload();
+    if (isMultiplayer && gameId) {
+        const { updateDoc, doc } = window.firebaseFuncs;
+        updateDoc(doc(window.db, "emodjeez_games", gameId), { status: 'abandoned' })
+            .finally(() => {
+                clearGameSubscription();
+                location.reload();
+            });
+    } else {
+        clearGameSubscription();
+        location.reload();
+    }
 }
 
 // --- MULTIPLAYER LOGIC ---
@@ -1968,6 +1979,17 @@ function handleGameState(data) {
     activeDuelId = gameId;
     activeDuelStatus = data.status;
     
+    if (data.status === 'abandoned') {
+        gameActive = false;
+        activeDuelId = null;
+        activeDuelStatus = null;
+        clearGameSubscription();
+        showStatusPopup(trans.duelAbandoned, 'info');
+        refreshActiveDuelButton();
+        setTimeout(() => location.reload(), 2500);
+        return;
+    }
+
     if (data.status === 'waiting') {
         document.getElementById('start-screen').style.display = 'none';
         document.getElementById('lobby-ui').style.display = 'flex';
