@@ -20,7 +20,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, getDoc, query, orderBy, limit, getDocs, where, deleteDoc, setDoc, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, getDoc, query, orderBy, limit, getDocs, where, deleteDoc, setDoc, serverTimestamp, runTransaction, increment } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
         // JOUW FIREBASE CONFIG
@@ -37,7 +37,7 @@
         window.db = getFirestore(app);
         window.auth = getAuth(app);
         
-        window.firebaseFuncs = { collection, addDoc, doc, onSnapshot, updateDoc, getDoc, query, orderBy, limit, getDocs, where, deleteDoc, setDoc, serverTimestamp, runTransaction };
+        window.firebaseFuncs = { collection, addDoc, doc, onSnapshot, updateDoc, getDoc, query, orderBy, limit, getDocs, where, deleteDoc, setDoc, serverTimestamp, runTransaction, increment };
         
         signInAnonymously(window.auth).then((u) => {
             console.log("Ingelogd als:", u.user.uid);
@@ -536,6 +536,7 @@ body {
         </div>
         <div class="menu-secondary-row">
             <button class="btn-link-secondary" onclick="openHighscores()">🏆 <span id="txt-high">Scores</span> ›</button>
+            <button class="btn-link-secondary" onclick="openHallOfFame()">🎖️ Hall of Fame ›</button>
         </div>
 
     </div>
@@ -672,13 +673,6 @@ body {
             <button class="tab-btn" onclick="switchTab('week', this)">Week</button>
             <button class="tab-btn" onclick="switchTab('alltime', this)">Alltime</button>
         </div>
-        <div class="tab-bar" id="hs-mode-bar">
-            <button class="tab-btn active" onclick="switchMode('all', this)" id="hs-mode-all">Alles</button>
-            <button class="tab-btn" onclick="switchMode('solo', this)" id="hs-mode-solo">👤 Solo</button>
-            <button class="tab-btn" onclick="switchMode('daily', this)" id="hs-mode-daily">📅 Daily</button>
-            <button class="tab-btn" onclick="switchMode('duel', this)" id="hs-mode-duel">⚔️ 1v1</button>
-        </div>
-
         <div id="hs-list" style="max-height: 300px; overflow-y: auto;">Laden...</div>
     </div>
 </div>
@@ -695,6 +689,20 @@ body {
         </div>
 
         <div id="daily-hs-list" style="max-height: 300px; overflow-y: auto;">Laden...</div>
+    </div>
+</div>
+
+<div id="hof-modal" class="modal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h2 style="margin:0; color:var(--primary);">🎖️ Hall of Fame</h2>
+            <span style="font-size:2rem; cursor:pointer;" onclick="document.getElementById('hof-modal').style.display='none'">&times;</span>
+        </div>
+        <div class="tab-bar" id="hof-tab-bar">
+            <button class="tab-btn active" onclick="switchHofTab('daily', this)">📅 Daily Wins</button>
+            <button class="tab-btn" onclick="switchHofTab('duel', this)">⚔️ Duel Wins</button>
+        </div>
+        <div id="hof-list" style="max-height: 350px; overflow-y: auto;">Laden...</div>
     </div>
 </div>
 
@@ -2286,6 +2294,9 @@ function handleGameState(data) {
             duelScoreSaved = true;
             const myScoreForHs = isHost ? data.hostScore : data.guestScore;
             saveHighscore(myScoreForHs, 'duel');
+            if (data.winner === myUid) {
+                saveDuelWin();
+            }
         }
         let msg = "";
         let emoji = "";
@@ -2445,6 +2456,15 @@ function resetToHome() {
 }
 
 // --- HIGHSCORES ---
+async function saveDuelWin() {
+    const { doc, setDoc, increment } = window.firebaseFuncs;
+    if (!window.currentUser) return;
+    try {
+        const ref = doc(window.db, "emodjeez_duel_wins", window.currentUser.uid);
+        await setDoc(ref, { uid: window.currentUser.uid, name: myUsername, wins: increment(1) }, { merge: true });
+    } catch(e) { console.error("Duel win save error", e); }
+}
+
 async function saveHighscore(score, mode) {
     if (score <= 0) return;
     const { addDoc, collection, serverTimestamp } = window.firebaseFuncs;
@@ -2475,7 +2495,6 @@ async function saveHighscore(score, mode) {
 
 let hsScope = 'global';
 let hsTab = 'today';
-let hsMode = 'all';
 let dailyHsDateKey = getUtcDateKey();
 let dailyAvailableDateKeys = [];
 
@@ -2500,13 +2519,6 @@ function switchScope(scope, btn) {
 function switchTab(tab, btn) {
     hsTab = tab;
     document.querySelectorAll('#hs-tab-bar .tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    loadHighscores();
-}
-
-function switchMode(mode, btn) {
-    hsMode = mode;
-    document.querySelectorAll('#hs-mode-bar .tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     loadHighscores();
 }
@@ -2596,14 +2608,6 @@ async function loadHighscores() {
             }
         }
 
-        if (hsMode === 'all') {
-            data = data.filter(d => d.mode === 'solo' || d.mode === 'daily' || d.mode === 'duel' || !d.mode);
-        } else if (hsMode === 'solo') {
-            data = data.filter(d => d.mode === 'solo' || !d.mode);
-        } else {
-            data = data.filter(d => d.mode === hsMode);
-        }
-
         const now = new Date();
         if (hsTab !== 'alltime') {
             data = data.filter(d => isWithinActiveTab(d, now));
@@ -2618,14 +2622,12 @@ async function loadHighscores() {
         }
         
         listEl.innerHTML = "";
-        const modeIcon = { solo: '👤', daily: '📅', duel: '⚔️' };
         data.slice(0, 20).forEach((item, idx) => {
             const row = document.createElement('div');
             row.className = 'hs-row';
-            const badge = (hsMode === 'all') ? `<span style="font-size:0.75rem; opacity:0.55; margin-left:4px;">${modeIcon[item.mode] || '👤'}</span>` : '';
             row.innerHTML = `
                 <div class="hs-rank">${idx+1}</div>
-                <div class="hs-name">${item.name}${badge}</div>
+                <div class="hs-name">${item.name}</div>
                 <div class="hs-score">${item.score}</div>
             `;
             listEl.appendChild(row);
@@ -2772,6 +2774,154 @@ async function loadDailyDateOptions() {
             return `<option value="${dateKey}" ${selected}>${label}</option>`;
         })
         .join('');
+}
+
+// --- HALL OF FAME ---
+let hofTab = 'daily';
+
+function openHallOfFame() {
+    document.getElementById('hof-modal').style.display = 'flex';
+    loadHallOfFame();
+}
+
+function switchHofTab(tab, btn) {
+    hofTab = tab;
+    document.querySelectorAll('#hof-tab-bar .tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadHallOfFame();
+}
+
+async function loadHallOfFame() {
+    const listEl = document.getElementById('hof-list');
+    listEl.innerHTML = "Laden...";
+    if (hofTab === 'daily') {
+        await loadHallOfFameDailyWins(listEl);
+    } else {
+        await loadHallOfFameDuelWins(listEl);
+    }
+}
+
+async function recordPendingDailyWinners() {
+    const { collection, query, limit, getDocs, doc, setDoc } = window.firebaseFuncs;
+
+    // Fetch all already-recorded winners in one query
+    const winnersSnap = await getDocs(collection(window.db, "emodjeez_daily_winners"));
+    const alreadyRecorded = new Set(winnersSnap.docs.map(d => d.id));
+
+    // Build list of past dates (skip today) that are not yet recorded
+    const today = new Date();
+    const candidates = [];
+    for (let i = 1; i <= 90; i++) {
+        const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+        d.setUTCDate(d.getUTCDate() - i);
+        const dateKey = getUtcDateKey(d);
+        if (!alreadyRecorded.has(dateKey)) candidates.push(dateKey);
+    }
+
+    for (const dateKey of candidates) {
+        const entriesRef = collection(window.db, "emodjeez_daily_results", dateKey, "entries");
+        const snapshot = await getDocs(query(entriesRef, limit(500)));
+        if (snapshot.empty) continue;
+
+        let winner = null;
+        let winnerScore = -1;
+        let winnerTime = Infinity;
+        snapshot.forEach(d => {
+            const item = d.data();
+            if (!item.finished) return;
+            const score = item.score || 0;
+            const time = item.clientFinishedTimestamp || item.clientTimestamp || Infinity;
+            if (score > winnerScore || (score === winnerScore && time < winnerTime)) {
+                winner = item;
+                winnerScore = score;
+                winnerTime = time;
+            }
+        });
+
+        if (winner && winnerScore > 0) {
+            try {
+                await setDoc(doc(window.db, "emodjeez_daily_winners", dateKey), {
+                    uid: winner.uid,
+                    name: winner.name,
+                    score: winnerScore,
+                    dateKey: dateKey,
+                    recordedAt: Date.now()
+                });
+            } catch(e) { console.error("Daily winner record error", dateKey, e); }
+        }
+    }
+}
+
+async function loadHallOfFameDailyWins(listEl) {
+    try {
+        await recordPendingDailyWinners();
+
+        const { collection, getDocs } = window.firebaseFuncs;
+        const snapshot = await getDocs(collection(window.db, "emodjeez_daily_winners"));
+
+        const tally = new Map();
+        snapshot.forEach(d => {
+            const item = d.data();
+            if (!item.uid) return;
+            if (!tally.has(item.uid)) tally.set(item.uid, { name: item.name, wins: 0 });
+            tally.get(item.uid).wins++;
+        });
+
+        const sorted = Array.from(tally.values()).sort((a, b) => b.wins - a.wins);
+
+        if (sorted.length === 0) {
+            listEl.innerHTML = "<div style='padding:20px; color:#aaa;'>Nog geen Daily winnaars.</div>";
+            return;
+        }
+
+        const hofMedals = ['🥇', '🥈', '🥉'];
+        listEl.innerHTML = "";
+        sorted.slice(0, 20).forEach((item, idx) => {
+            const row = document.createElement('div');
+            row.className = 'hs-row';
+            const rank = hofMedals[idx] ?? idx + 1;
+            row.innerHTML = `
+                <div class="hs-rank">${rank}</div>
+                <div class="hs-name">${item.name}</div>
+                <div class="hs-score" style="color: var(--primary);">🏆 ${item.wins}</div>
+            `;
+            listEl.appendChild(row);
+        });
+    } catch(e) {
+        console.error(e);
+        listEl.innerHTML = "Fout bij laden.";
+    }
+}
+
+async function loadHallOfFameDuelWins(listEl) {
+    try {
+        const { collection, getDocs, query, orderBy, limit } = window.firebaseFuncs;
+        const q = query(collection(window.db, "emodjeez_duel_wins"), orderBy("wins", "desc"), limit(20));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+            listEl.innerHTML = "<div style='padding:20px; color:#aaa;'>Nog geen duel winnaars.</div>";
+            return;
+        }
+
+        const hofMedals = ['🥇', '🥈', '🥉'];
+        listEl.innerHTML = "";
+        snapshot.docs.forEach((d, idx) => {
+            const item = d.data();
+            const row = document.createElement('div');
+            row.className = 'hs-row';
+            const rank = hofMedals[idx] ?? idx + 1;
+            row.innerHTML = `
+                <div class="hs-rank">${rank}</div>
+                <div class="hs-name">${item.name}</div>
+                <div class="hs-score" style="color: var(--secondary);">⚔️ ${item.wins}</div>
+            `;
+            listEl.appendChild(row);
+        });
+    } catch(e) {
+        console.error(e);
+        listEl.innerHTML = "Fout bij laden.";
+    }
 }
 
 // --- INSTALLATIE PROMPT LOGICA ---
