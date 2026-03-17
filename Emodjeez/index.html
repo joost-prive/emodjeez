@@ -2778,6 +2778,9 @@ async function loadDailyDateOptions() {
 
 // --- HALL OF FAME ---
 let hofTab = 'daily';
+let hofDailyCache = null;
+let hofDailyCacheTime = 0;
+const HOF_CACHE_TTL = 5 * 60 * 1000;
 
 function openHallOfFame() {
     document.getElementById('hof-modal').style.display = 'flex';
@@ -2806,7 +2809,7 @@ async function recordPendingDailyWinners() {
 
     // Fetch all already-recorded winners; skip only docs in new format (has 'first' field)
     // Old-format docs (single uid) get overwritten with top-3 format
-    const winnersSnap = await getDocs(collection(window.db, "emodjeez_daily_winners"));
+    let winnersSnap = await getDocs(collection(window.db, "emodjeez_daily_winners"));
     const alreadyRecorded = new Set(
         winnersSnap.docs.filter(d => d.data().first !== undefined).map(d => d.id)
     );
@@ -2820,6 +2823,7 @@ async function recordPendingDailyWinners() {
         if (!alreadyRecorded.has(dateKey)) candidates.push(dateKey);
     }
 
+    let wroteNew = false;
     for (const dateKey of candidates) {
         const entriesRef = collection(window.db, "emodjeez_daily_results", dateKey, "entries");
         const snapshot = await getDocs(query(entriesRef, limit(500)));
@@ -2857,29 +2861,39 @@ async function recordPendingDailyWinners() {
 
         try {
             await setDoc(doc(window.db, "emodjeez_daily_winners", dateKey), docData);
+            wroteNew = true;
         } catch(e) { console.error("Daily winner record error", dateKey, e); }
     }
+
+    // If new records were written, fetch a fresh snapshot; otherwise reuse the one we already have
+    if (wroteNew) {
+        winnersSnap = await getDocs(collection(window.db, "emodjeez_daily_winners"));
+    }
+    return winnersSnap;
 }
 
 async function loadHallOfFameDailyWins(listEl) {
     try {
-        await recordPendingDailyWinners();
-
-        const { collection, getDocs } = window.firebaseFuncs;
-        const snapshot = await getDocs(collection(window.db, "emodjeez_daily_winners"));
-
-        const tally = new Map();
-        snapshot.forEach(d => {
-            const item = d.data();
-            const addMedal = (place, type) => {
-                if (!place?.uid) return;
-                if (!tally.has(place.uid)) tally.set(place.uid, { name: place.name, gold: 0, silver: 0, bronze: 0 });
-                tally.get(place.uid)[type]++;
-            };
-            addMedal(item.first, 'gold');
-            addMedal(item.second, 'silver');
-            addMedal(item.third, 'bronze');
-        });
+        let tally;
+        if (hofDailyCache && Date.now() - hofDailyCacheTime < HOF_CACHE_TTL) {
+            tally = hofDailyCache;
+        } else {
+            const snapshot = await recordPendingDailyWinners();
+            tally = new Map();
+            snapshot.forEach(d => {
+                const item = d.data();
+                const addMedal = (place, type) => {
+                    if (!place?.uid) return;
+                    if (!tally.has(place.uid)) tally.set(place.uid, { name: place.name, gold: 0, silver: 0, bronze: 0 });
+                    tally.get(place.uid)[type]++;
+                };
+                addMedal(item.first, 'gold');
+                addMedal(item.second, 'silver');
+                addMedal(item.third, 'bronze');
+            });
+            hofDailyCache = tally;
+            hofDailyCacheTime = Date.now();
+        }
 
         // Olympic sort: goud → zilver → brons
         const sorted = Array.from(tally.values()).sort((a, b) => {
