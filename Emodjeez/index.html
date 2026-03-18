@@ -2672,7 +2672,7 @@ async function loadDailyHighscores() {
 
             const aTime = getDailyDate(a)?.getTime() || 0;
             const bTime = getDailyDate(b)?.getTime() || 0;
-            return bTime - aTime;
+            return aTime - bTime;
         });
 
         if (data.length === 0) {
@@ -2875,24 +2875,45 @@ async function recordPendingDailyWinners() {
 async function loadHallOfFameDailyWins(listEl) {
     try {
         let tally;
-        if (hofDailyCache && Date.now() - hofDailyCacheTime < HOF_CACHE_TTL) {
+        const now = Date.now();
+
+        // Laag 1: in-memory cache (razendsnel, zelfde sessie)
+        if (hofDailyCache && now - hofDailyCacheTime < HOF_CACHE_TTL) {
             tally = hofDailyCache;
         } else {
-            const snapshot = await recordPendingDailyWinners();
-            tally = new Map();
-            snapshot.forEach(d => {
-                const item = d.data();
-                const addMedal = (place, type) => {
-                    if (!place?.uid) return;
-                    if (!tally.has(place.uid)) tally.set(place.uid, { name: place.name, gold: 0, silver: 0, bronze: 0 });
-                    tally.get(place.uid)[type]++;
-                };
-                addMedal(item.first, 'gold');
-                addMedal(item.second, 'silver');
-                addMedal(item.third, 'bronze');
-            });
-            hofDailyCache = tally;
-            hofDailyCacheTime = Date.now();
+            // Laag 2: localStorage cache (snel, overleeft page refresh)
+            try {
+                const lsTime = parseInt(localStorage.getItem('hofDailyCacheTime') || '0');
+                const lsData = localStorage.getItem('hofDailyCache');
+                if (lsData && now - lsTime < HOF_CACHE_TTL) {
+                    tally = new Map(JSON.parse(lsData));
+                    hofDailyCache = tally;
+                    hofDailyCacheTime = lsTime;
+                }
+            } catch(e) { /* private mode of storage vol */ }
+
+            // Laag 3: Firestore (traag, alleen als cache verlopen is)
+            if (!tally) {
+                const snapshot = await recordPendingDailyWinners();
+                tally = new Map();
+                snapshot.forEach(d => {
+                    const item = d.data();
+                    const addMedal = (place, type) => {
+                        if (!place?.uid) return;
+                        if (!tally.has(place.uid)) tally.set(place.uid, { name: place.name, gold: 0, silver: 0, bronze: 0 });
+                        tally.get(place.uid)[type]++;
+                    };
+                    addMedal(item.first, 'gold');
+                    addMedal(item.second, 'silver');
+                    addMedal(item.third, 'bronze');
+                });
+                hofDailyCache = tally;
+                hofDailyCacheTime = now;
+                try {
+                    localStorage.setItem('hofDailyCache', JSON.stringify(Array.from(tally.entries())));
+                    localStorage.setItem('hofDailyCacheTime', String(now));
+                } catch(e) { /* private mode of storage vol */ }
+            }
         }
 
         // Olympic sort: goud → zilver → brons
