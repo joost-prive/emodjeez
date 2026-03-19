@@ -1835,6 +1835,8 @@ async function startDailyMode() {
         return;
     }
 
+    finalizePreviousDays(); // fire-and-forget: sluit gisteren af en update tally
+
     isMultiplayer = false;
     isDailyMode = true;
     gameActive = true;
@@ -2780,10 +2782,11 @@ async function loadDailyDateOptions() {
 let hofTab = 'daily';
 let hofDailyCache = null;
 let hofDailyCacheTime = 0;
-const HOF_CACHE_TTL = 5 * 60 * 1000;
+const HOF_CACHE_TTL = 60 * 60 * 1000; // 1 uur — tally verandert max 1x per dag
 
-function openHallOfFame() {
+async function openHallOfFame() {
     document.getElementById('hof-modal').style.display = 'flex';
+    await finalizePreviousDays(); // zorg dat tally up-to-date is (snel als al gedaan)
     loadHallOfFame();
 }
 
@@ -2804,72 +2807,131 @@ async function loadHallOfFame() {
     }
 }
 
-async function recordPendingDailyWinners() {
-    const { collection, query, limit, getDocs, doc, setDoc } = window.firebaseFuncs;
+// Schrijft winner-docs voor ontbrekende dagen én houdt emodjeez_hof_tally bij.
+// Bootstrap (eerste keer): bouwt tally op uit alle bestaande winner-docs.
+// Normaal (tally bestaat): controleert alleen gisteren — 1 read, razendsnel.
+async function finalizePreviousDays() {
+    try {
+        const { collection, query, limit, getDocs, doc, getDoc, setDoc, runTransaction } = window.firebaseFuncs;
+        const tallyRef = doc(window.db, "emodjeez_hof_tally", "daily");
 
-    // Fetch all already-recorded winners; skip only docs in new format (has 'first' field)
-    // Old-format docs (single uid) get overwritten with top-3 format
-    let winnersSnap = await getDocs(collection(window.db, "emodjeez_daily_winners"));
-    const alreadyRecorded = new Set(
-        winnersSnap.docs.filter(d => d.data().first !== undefined).map(d => d.id)
-    );
-
-    const today = new Date();
-    const candidates = [];
-    for (let i = 1; i <= 90; i++) {
-        const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
-        d.setUTCDate(d.getUTCDate() - i);
-        const dateKey = getUtcDateKey(d);
-        if (!alreadyRecorded.has(dateKey)) candidates.push(dateKey);
-    }
-
-    let wroteNew = false;
-    for (const dateKey of candidates) {
-        const entriesRef = collection(window.db, "emodjeez_daily_results", dateKey, "entries");
-        const snapshot = await getDocs(query(entriesRef, limit(500)));
-        if (snapshot.empty) continue;
-
-        // Collect finished entries, sort by score desc then earliest finish
-        const entries = [];
-        snapshot.forEach(d => {
-            const item = d.data();
-            if (!item.finished) return;
-            entries.push({
-                uid: item.uid,
-                name: item.name,
-                score: item.score || 0,
-                time: item.clientFinishedTimestamp || item.clientTimestamp || Infinity
+        // Helper: verwerk entries van één dag en geef de top-3 docData terug (of null)
+        async function computeWinnerDoc(dateKey) {
+            const entriesRef = collection(window.db, "emodjeez_daily_results", dateKey, "entries");
+            const snap = await getDocs(query(entriesRef, limit(500)));
+            if (snap.empty) return null;
+            const entries = [];
+            snap.forEach(d => {
+                const item = d.data();
+                if (!item.finished) return;
+                entries.push({ uid: item.uid, name: item.name, score: item.score || 0,
+                    time: item.clientFinishedTimestamp || item.clientTimestamp || Infinity });
             });
-        });
-        if (entries.length === 0) continue;
-
-        entries.sort((a, b) => b.score !== a.score ? b.score - a.score : a.time - b.time);
-
-        // Top 3 unique players
-        const top3 = [];
-        const seen = new Set();
-        for (const e of entries) {
-            if (!seen.has(e.uid)) { seen.add(e.uid); top3.push(e); }
-            if (top3.length === 3) break;
+            if (entries.length === 0) return null;
+            entries.sort((a, b) => b.score !== a.score ? b.score - a.score : a.time - b.time);
+            const top3 = [], seen = new Set();
+            for (const e of entries) {
+                if (!seen.has(e.uid)) { seen.add(e.uid); top3.push(e); }
+                if (top3.length === 3) break;
+            }
+            const docData = { dateKey, recordedAt: Date.now() };
+            ['first', 'second', 'third'].forEach((place, i) => {
+                if (top3[i]) docData[place] = { uid: top3[i].uid, name: top3[i].name, score: top3[i].score };
+            });
+            return docData;
         }
 
-        const docData = { dateKey, recordedAt: Date.now() };
-        const places = ['first', 'second', 'third'];
-        top3.forEach((e, i) => {
-            docData[places[i]] = { uid: e.uid, name: e.name, score: e.score };
-        });
+        // Helper: voeg medailles van één winner-doc toe aan een players-object
+        function applyMedals(players, winnerDoc) {
+            const addMedal = (place, type) => {
+                if (!place?.uid) return;
+                if (!players[place.uid]) players[place.uid] = { name: place.name, gold: 0, silver: 0, bronze: 0 };
+                players[place.uid][type]++;
+                players[place.uid].name = place.name; // naam actueel houden
+            };
+            addMedal(winnerDoc.first,  'gold');
+            addMedal(winnerDoc.second, 'silver');
+            addMedal(winnerDoc.third,  'bronze');
+        }
 
-        try {
-            await setDoc(doc(window.db, "emodjeez_daily_winners", dateKey), docData);
-            wroteNew = true;
-        } catch(e) { console.error("Daily winner record error", dateKey, e); }
-    }
+        const tallySnap = await getDoc(tallyRef);
 
-    // If new records were written, fetch a fresh snapshot; otherwise reuse the one we already have
-    if (wroteNew) {
-        winnersSnap = await getDocs(collection(window.db, "emodjeez_daily_winners"));
+        if (!tallySnap.exists()) {
+            // ── BOOTSTRAP ────────────────────────────────────────────────────────────
+            // Haal alle bestaande winner-docs op en schrijf eventueel ontbrekende
+            let winnersSnap = await getDocs(collection(window.db, "emodjeez_daily_winners"));
+            const alreadyRecorded = new Set(
+                winnersSnap.docs.filter(d => d.data().first !== undefined).map(d => d.id)
+            );
+            const today = new Date();
+            let wroteNew = false;
+            for (let i = 1; i <= 90; i++) {
+                const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+                d.setUTCDate(d.getUTCDate() - i);
+                const dateKey = getUtcDateKey(d);
+                if (alreadyRecorded.has(dateKey)) continue;
+                const winnerDoc = await computeWinnerDoc(dateKey);
+                if (!winnerDoc) continue;
+                try { await setDoc(doc(window.db, "emodjeez_daily_winners", dateKey), winnerDoc); wroteNew = true; }
+                catch(e) { console.error("Bootstrap winner write error", dateKey, e); }
+            }
+            if (wroteNew) winnersSnap = await getDocs(collection(window.db, "emodjeez_daily_winners"));
+
+            // Bouw tally op uit alle winner-docs en sla op
+            const players = {};
+            winnersSnap.forEach(d => { if (d.data().first !== undefined) applyMedals(players, d.data()); });
+            await setDoc(tallyRef, { players, updatedAt: Date.now() });
+
+        } else {
+            // ── INCREMENTEEL ─────────────────────────────────────────────────────────
+            // Fast-path: check alleen gisteren (1 read)
+            const today = new Date();
+            const yesterday = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+            yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+            const yesterdayKey = getUtcDateKey(yesterday);
+            const yDoc = await getDoc(doc(window.db, "emodjeez_daily_winners", yesterdayKey));
+            if (yDoc.exists() && yDoc.data().first !== undefined) return; // alles up-to-date
+
+            // Gisteren nog niet geregistreerd — controleer de laatste 7 dagen parallel
+            const checks = await Promise.all(
+                Array.from({ length: 7 }, async (_, i) => {
+                    const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+                    d.setUTCDate(d.getUTCDate() - (i + 1));
+                    const dateKey = getUtcDateKey(d);
+                    const snap = await getDoc(doc(window.db, "emodjeez_daily_winners", dateKey));
+                    return snap.exists() && snap.data().first !== undefined ? null : dateKey;
+                })
+            );
+            const missing = checks.filter(Boolean);
+            if (missing.length === 0) return;
+
+            let updated = false;
+            for (const dateKey of missing) {
+                const winnerDoc = await computeWinnerDoc(dateKey);
+                if (!winnerDoc) continue;
+                try { await setDoc(doc(window.db, "emodjeez_daily_winners", dateKey), winnerDoc); }
+                catch(e) { console.error("Winner write error", dateKey, e); continue; }
+
+                // Update tally atomisch
+                await runTransaction(window.db, async (tx) => {
+                    const t = await tx.get(tallyRef);
+                    const players = t.exists() ? { ...t.data().players } : {};
+                    applyMedals(players, winnerDoc);
+                    tx.set(tallyRef, { players, updatedAt: Date.now() });
+                });
+                updated = true;
+            }
+
+            if (updated) {
+                // Cache invalideren zodat volgende HoF-open verse data toont
+                hofDailyCache = null;
+                hofDailyCacheTime = 0;
+                try { localStorage.removeItem('hofDailyCache'); localStorage.removeItem('hofDailyCacheTime'); } catch(e) {}
+            }
+        }
+    } catch(e) {
+        console.error("finalizePreviousDays error", e);
     }
-    return winnersSnap;
 }
 
 async function loadHallOfFameDailyWins(listEl) {
@@ -2877,11 +2939,11 @@ async function loadHallOfFameDailyWins(listEl) {
         let tally;
         const now = Date.now();
 
-        // Laag 1: in-memory cache (razendsnel, zelfde sessie)
+        // Laag 1: in-memory cache
         if (hofDailyCache && now - hofDailyCacheTime < HOF_CACHE_TTL) {
             tally = hofDailyCache;
         } else {
-            // Laag 2: localStorage cache (snel, overleeft page refresh)
+            // Laag 2: localStorage cache
             try {
                 const lsTime = parseInt(localStorage.getItem('hofDailyCacheTime') || '0');
                 const lsData = localStorage.getItem('hofDailyCache');
@@ -2892,21 +2954,14 @@ async function loadHallOfFameDailyWins(listEl) {
                 }
             } catch(e) { /* private mode of storage vol */ }
 
-            // Laag 3: Firestore (traag, alleen als cache verlopen is)
+            // Laag 3: Firestore — 1 document lezen (emodjeez_hof_tally)
             if (!tally) {
-                const snapshot = await recordPendingDailyWinners();
-                tally = new Map();
-                snapshot.forEach(d => {
-                    const item = d.data();
-                    const addMedal = (place, type) => {
-                        if (!place?.uid) return;
-                        if (!tally.has(place.uid)) tally.set(place.uid, { name: place.name, gold: 0, silver: 0, bronze: 0 });
-                        tally.get(place.uid)[type]++;
-                    };
-                    addMedal(item.first, 'gold');
-                    addMedal(item.second, 'silver');
-                    addMedal(item.third, 'bronze');
-                });
+                const { doc, getDoc } = window.firebaseFuncs;
+                const tallySnap = await getDoc(doc(window.db, "emodjeez_hof_tally", "daily"));
+                tally = tallySnap.exists()
+                    ? new Map(Object.entries(tallySnap.data().players || {}))
+                    : new Map();
+
                 hofDailyCache = tally;
                 hofDailyCacheTime = now;
                 try {
