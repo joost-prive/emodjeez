@@ -2808,13 +2808,13 @@ async function loadHallOfFame() {
 }
 
 // Schrijft winner-docs voor ontbrekende dagen én houdt tally bij.
-// Tally wordt opgeslagen als __tally__ in emodjeez_daily_winners (geen nieuwe collectie nodig).
+// Tally wordt opgeslagen als _tally_ in emodjeez_daily_winners (geen nieuwe collectie nodig).
 // Bootstrap (eerste keer): bouwt tally op uit alle bestaande winner-docs.
 // Normaal (tally bestaat): controleert alleen gisteren — 1 read, razendsnel.
 async function finalizePreviousDays() {
     try {
         const { collection, query, limit, getDocs, doc, getDoc, setDoc, runTransaction } = window.firebaseFuncs;
-        const tallyRef = doc(window.db, "emodjeez_daily_winners", "__tally__");
+        const tallyRef = doc(window.db, "emodjeez_daily_winners", "_tally_");
 
         // Helper: verwerk entries van één dag en geef de top-3 docData terug (of null)
         async function computeWinnerDoc(dateKey) {
@@ -2862,7 +2862,7 @@ async function finalizePreviousDays() {
             // Haal alle bestaande winner-docs op en schrijf eventueel ontbrekende
             let winnersSnap = await getDocs(collection(window.db, "emodjeez_daily_winners"));
             const alreadyRecorded = new Set(
-                winnersSnap.docs.filter(d => d.id !== '__tally__' && d.data().first !== undefined).map(d => d.id)
+                winnersSnap.docs.filter(d => d.id !== '_tally_' && d.data().first !== undefined).map(d => d.id)
             );
             const today = new Date();
             let wroteNew = false;
@@ -2878,9 +2878,9 @@ async function finalizePreviousDays() {
             }
             if (wroteNew) winnersSnap = await getDocs(collection(window.db, "emodjeez_daily_winners"));
 
-            // Bouw tally op uit alle winner-docs en sla op (sla __tally__ zelf over)
+            // Bouw tally op uit alle winner-docs en sla op (sla _tally_ zelf over)
             const players = {};
-            winnersSnap.forEach(d => { if (d.id !== '__tally__' && d.data().first !== undefined) applyMedals(players, d.data()); });
+            winnersSnap.forEach(d => { if (d.id !== '_tally_' && d.data().first !== undefined) applyMedals(players, d.data()); });
             await setDoc(tallyRef, { players, updatedAt: Date.now() });
 
         } else {
@@ -2955,10 +2955,10 @@ async function loadHallOfFameDailyWins(listEl) {
                 }
             } catch(e) { /* private mode of storage vol */ }
 
-            // Laag 3: Firestore — 1 document lezen (__tally__ in emodjeez_daily_winners)
+            // Laag 3: Firestore — 1 document lezen (_tally_ in emodjeez_daily_winners)
             if (!tally) {
                 const { doc, getDoc } = window.firebaseFuncs;
-                const tallySnap = await getDoc(doc(window.db, "emodjeez_daily_winners", "__tally__"));
+                const tallySnap = await getDoc(doc(window.db, "emodjeez_daily_winners", "_tally_"));
                 tally = tallySnap.exists()
                     ? new Map(Object.entries(tallySnap.data().players || {}))
                     : new Map();
