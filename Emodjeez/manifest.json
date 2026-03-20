@@ -1,17 +1,27 @@
 {
   "short_name": "Emodjeez",
   "name": "Emodjeez - The Emoji Quiz",
-"icons": [
-  {
-    "src": "logo.png",
-    "sizes": "512x512",
-    "type": "image/png",
-    "purpose": "any"
-  }
-],
+  "description": "De ultieme emoji quiz! Raad in welke categorie WhatsApp emoji's vallen en daag vrienden uit.",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#1e3799",
-  "background_color": "#2c1e3e"
+  "background_color": "#2c1e3e",
+  "lang": "nl",
+  "categories": ["games", "entertainment"]
 }

@@ -134,8 +134,8 @@ body {
 
         /* --- Header & Logo --- */
         .brand-header {
-            margin-top: 20px; 
-            margin-bottom: -10px; 
+            margin-top: 10px;
+            margin-bottom: 0px;
             animation: bounceIn 0.8s;
             position: relative;
             z-index: 10;
@@ -144,8 +144,8 @@ body {
             align-items: center;
         }
         .main-logo-img {
-            width: 350px; 
-            max-width: 100%; 
+            width: 200px;
+            max-width: 100%;
             height: auto;
             filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.3)) drop-shadow(0 0 60px rgba(30, 55, 153, 0.5));
             transition: transform 0.3s, filter 0.3s;
@@ -169,9 +169,9 @@ body {
 }
 
         /* --- Screens --- */
-        #start-screen, #game-screen, #lobby-ui { 
-            width: 100%; max-width: 500px; display: flex; flex-direction: column; align-items: center; gap: 15px;
-            margin-top: 20px; 
+        #start-screen, #game-screen, #lobby-ui {
+            width: 100%; max-width: 500px; display: flex; flex-direction: column; align-items: center; gap: 10px;
+            margin-top: 10px;
         }
 
         /* --- Menu Card --- */
@@ -274,8 +274,8 @@ body {
         /* --- Game Area --- */
         .game-header-bar {
             display: flex; justify-content: space-between; align-items: center;
-            width: 100%; background: rgba(0,0,0,0.3); padding: 10px 20px;
-            border-radius: 50px; margin-bottom: 20px; box-sizing: border-box;
+            width: 100%; background: rgba(0,0,0,0.3); padding: 8px 20px;
+            border-radius: 50px; margin-bottom: 10px; box-sizing: border-box;
         }
         .score-pill { font-size: 1.3rem; font-weight: bold; color: var(--primary); text-shadow: 0 2px 0 #000; }
         
@@ -290,13 +290,13 @@ body {
         }
 
         .emoji-display-card {
-            width: 150px; height: 150px;
+            width: 140px; height: 140px;
             background: #fff;
             border-radius: 40px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 6rem;
+            font-size: 5.5rem;
             box-shadow: 0 15px 40px rgba(0,0,0,0.4);
-            margin-bottom: 25px;
+            margin-bottom: 15px;
             border: 6px solid rgba(255,255,255,0.8);
             position: relative;
             animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -378,7 +378,8 @@ body {
 
         /* --- Kleine secondary link onder speelknoppen --- */
         .menu-secondary-row {
-            display: flex; justify-content: center; gap: 20px;
+            display: flex; justify-content: center; gap: 12px;
+            flex-wrap: wrap;
             margin-top: 4px; margin-bottom: 12px;
         }
         .btn-link-secondary {
@@ -390,11 +391,31 @@ body {
         }
         .btn-link-secondary:hover { color: var(--text-main); }
 
+        /* --- Styled Select (dropdown) --- */
+        .emodjeez-select {
+            width: 100%; padding: 10px 14px;
+            border-radius: 12px;
+            background: var(--modal-surface);
+            color: var(--text-main);
+            border: 1px solid rgba(255,255,255,0.2);
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1rem; font-weight: 600;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23ffffff' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            padding-right: 36px;
+        }
+        .emodjeez-select:focus { outline: none; border-color: var(--secondary); }
+        .emodjeez-select option { background: #1e2a45; color: #fff; }
+
         /* --- Menu divider --- */
         .menu-divider {
             width: 100%; height: 1px;
             background: rgba(255,255,255,0.1);
-            margin: 8px 0 16px 0;
+            margin: 20px 0 16px 0;
         }
 
         /* --- Settings modal --- */
@@ -436,10 +457,29 @@ body {
             background: rgba(255,255,255,0.05); margin-bottom: 8px; border-radius: 10px;
             align-items: center;
         }
+        .hs-row.is-me {
+            background: rgba(0, 210, 211, 0.15);
+            border: 1px solid rgba(0, 210, 211, 0.4);
+        }
+        .hs-row.is-me .hs-name::after {
+            content: " 👈";
+        }
         .hs-rank { font-weight: bold; width: 30px; color: var(--primary); font-size: 1.1rem; }
         .hs-name { flex: 1; text-align: left; padding-left: 10px; font-weight: 500;}
         .hs-score { font-weight: bold; color: #fab1a0;}
         
+        /* --- Custom scrollbar (Emodjeez-stijl) --- */
+        .score-list {
+            max-height: 300px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--secondary) rgba(255,255,255,0.05);
+        }
+        .score-list::-webkit-scrollbar { width: 6px; }
+        .score-list::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .score-list::-webkit-scrollbar-thumb { background: var(--secondary); border-radius: 10px; }
+        .score-list::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
         .scope-bar, .tab-bar { display: flex; gap: 5px; margin-bottom: 15px; justify-content: center; width: 100%; }
         .scope-btn, .tab-btn {
             flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.2);
@@ -515,16 +555,14 @@ body {
 </div>
 
 <div id="start-screen">
+    <p class="app-subtitle" id="txt-subtitle">Emoji's kennen we allemaal!<br>Maar onder welke categorie ze vallen bij WhatsApp?<br>Djeez, best moeilijk!</p>
     <div class="menu-card">
+
+        <div class="menu-section-label" id="txt-section-play">🎮 Spelen</div>
 
         <button class="btn btn-daily" onclick="startDailyMode()">
             <span>📅</span> <span id="txt-daily">Daily</span>
         </button>
-        <div class="menu-secondary-row">
-            <button class="btn-link-secondary" onclick="openDailyHighscores()">🏆 <span id="txt-daily-rank">Ranglijst</span> ›</button>
-        </div>
-
-        <div class="menu-divider"></div>
 
         <div class="menu-dual-row">
             <button class="btn btn-solo" onclick="startSoloGame()">
@@ -534,14 +572,16 @@ body {
                 <span>⚔️</span> <span id="txt-multi">1 vs 1</span>
             </button>
         </div>
+
+        <div class="menu-divider"></div>
+
+        <div class="menu-section-label" id="txt-section-scores">🏆 Scores</div>
         <div class="menu-secondary-row">
+            <button class="btn-link-secondary" onclick="openDailyHighscores()">📅 <span id="txt-daily-rank">Ranglijst</span> ›</button>
             <button class="btn-link-secondary" onclick="openHighscores()">🏆 <span id="txt-high">Scores</span> ›</button>
             <button class="btn-link-secondary" onclick="openHallOfFame()">🎖️ Hall of Fame ›</button>
         </div>
 
-    </div>
-    <div style="margin-top: 20px; font-size: 0.7rem; opacity: 0.4; text-align: center; font-family: sans-serif;">
-        © 2026 Emodjeez - v1.0.0<br>Created by ViaAventura
     </div>
 </div>
 
@@ -665,15 +705,15 @@ body {
         </div>
 
         <div class="scope-bar" id="hs-scope-bar">
-            <button class="scope-btn active" onclick="switchScope('global', this)">🌎 Iedereen</button>
-            <button class="scope-btn" onclick="switchScope('personal', this)">👤 Ik</button>
+            <button class="scope-btn active" id="hs-scope-global" onclick="switchScope('global', this)">🌎 Iedereen</button>
+            <button class="scope-btn" id="hs-scope-personal" onclick="switchScope('personal', this)">👤 Ik</button>
         </div>
         <div class="tab-bar" id="hs-tab-bar">
-            <button class="tab-btn active" onclick="switchTab('today', this)">Vandaag</button>
-            <button class="tab-btn" onclick="switchTab('week', this)">Week</button>
-            <button class="tab-btn" onclick="switchTab('alltime', this)">Alltime</button>
+            <button class="tab-btn active" id="hs-tab-today" onclick="switchTab('today', this)">Vandaag</button>
+            <button class="tab-btn" id="hs-tab-week" onclick="switchTab('week', this)">Week</button>
+            <button class="tab-btn" id="hs-tab-alltime" onclick="switchTab('alltime', this)">Alltime</button>
         </div>
-        <div id="hs-list" style="max-height: 300px; overflow-y: auto;">Laden...</div>
+        <div id="hs-list" class="score-list">Laden...</div>
     </div>
 </div>
 
@@ -685,10 +725,10 @@ body {
         </div>
 
         <div style="margin-bottom: 12px;">
-            <select id="daily-date-select" onchange="onDailyDateChange()" style="width:100%; padding:10px; border-radius:10px; background: transparent; color:#fff; border:1px solid rgba(255,255,255,0.2); font-weight:600;"></select>
+            <select id="daily-date-select" class="emodjeez-select" onchange="onDailyDateChange()"></select>
         </div>
 
-        <div id="daily-hs-list" style="max-height: 300px; overflow-y: auto;">Laden...</div>
+        <div id="daily-hs-list" class="score-list">Laden...</div>
     </div>
 </div>
 
@@ -702,7 +742,7 @@ body {
             <button class="tab-btn active" onclick="switchHofTab('daily', this)">📅 Daily Wins</button>
             <button class="tab-btn" onclick="switchHofTab('duel', this)">⚔️ Duel Wins</button>
         </div>
-        <div id="hof-list" style="max-height: 350px; overflow-y: auto;">Laden...</div>
+        <div id="hof-list" class="score-list" style="max-height: 350px;">Laden...</div>
     </div>
 </div>
 
@@ -765,12 +805,15 @@ body {
                     <img src="https://flagcdn.com/w40/nl.png" alt="NL">
                 </button>
                 <button class="lang-flag" onclick="changeLanguage('en')" title="English">
-                    <img src="https://flagcdn.com/w40/us.png" alt="EN">
+                    <img src="https://flagcdn.com/w40/gb.png" alt="EN">
                 </button>
                 <button class="lang-flag" onclick="changeLanguage('de')" title="Deutsch">
                     <img src="https://flagcdn.com/w40/de.png" alt="DE">
                 </button>
             </div>
+        </div>
+        <div style="margin-top: 24px; font-size: 0.72rem; opacity: 0.35; text-align: center; font-family: sans-serif; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
+            © 2026 Emodjeez · v1.0.0 · Created by ViaAventura
         </div>
     </div>
 </div>
@@ -1058,6 +1101,8 @@ const translations = {
         welcomeTitle: "👋 Welkom bij Emodjeez!",
         welcomeNameLabel: "Wat is jouw naam?",
         welcomePlay: "Spelen! 🎮",
+        sectionPlay: "🎮 Spelen",
+        sectionScores: "🏆 Scores",
         hsModeAll: "Alles",
         hsModeDaily: "📅 Daily",
         hsModeDuel: "⚔️ 1v1",
@@ -1090,6 +1135,21 @@ const translations = {
         dailyCompletedText: "Perfect gespeeld! Je hebt alle Daily emoji's gehad.",
         dailyToday: "Vandaag",
         dailyYesterday: "Gisteren",
+        loading: "Laden...",
+        hsEveryone: "🌎 Iedereen",
+        hsMe: "👤 Ik",
+        hsToday: "Vandaag",
+        hsWeek: "Week",
+        hsAlltime: "Alltime",
+        loginFailed: "Kon geen login maken. Probeer opnieuw.",
+        dailyStartFailed: "Daily starten mislukt. Probeer opnieuw.",
+        gameCreateFailed: "Fout bij aanmaken spel.",
+        gameFetchFailed: "Kon het spel niet ophalen. Probeer opnieuw.",
+        gameInvalid: "Deze game-link is niet meer geldig.",
+        gameInProgress: "Dit duel is al bezig.",
+        joinFailed: "Kon niet deelnemen. Probeer opnieuw.",
+        soloLabel: "SOLO RUN",
+        dailyLabel: "DAILY",
         cat1: "Smileys en mensen",
         cat2: "Dieren en natuur",
         cat3: "Eten en drinken",
@@ -1146,6 +1206,8 @@ const translations = {
         welcomeTitle: "👋 Welcome to Emodjeez!",
         welcomeNameLabel: "What is your name?",
         welcomePlay: "Play! 🎮",
+        sectionPlay: "🎮 Play",
+        sectionScores: "🏆 Scores",
         hsModeAll: "All",
         hsModeDaily: "📅 Daily",
         hsModeDuel: "⚔️ 1v1",
@@ -1178,6 +1240,22 @@ const translations = {
         dailyCompletedText: "Perfect run! You completed all Daily emojis.",
         dailyToday: "Today",
         dailyYesterday: "Yesterday",
+        loading: "Loading...",
+        hsEveryone: "🌎 Everyone",
+        hsMe: "👤 Me",
+        hsToday: "Today",
+        hsWeek: "Week",
+        hsAlltime: "All time",
+        loginFailed: "Could not sign in. Please try again.",
+        dailyStartFailed: "Failed to start Daily. Please try again.",
+        gameCreateFailed: "Failed to create game.",
+        gameFetchFailed: "Could not load game. Please try again.",
+        gameInvalid: "This game link is no longer valid.",
+        gameInProgress: "This duel is already in progress.",
+        joinFailed: "Could not join. Please try again.",
+        soloLabel: "SOLO RUN",
+        dailyLabel: "DAILY",
+        dailyRank: "Daily Rank",
         cat1: "Smileys & People",
         cat2: "Animals & Nature",
         cat3: "Food & Drink",
@@ -1234,6 +1312,8 @@ const translations = {
         welcomeTitle: "👋 Willkommen bei Emodjeez!",
         welcomeNameLabel: "Wie heißt du?",
         welcomePlay: "Spielen! 🎮",
+        sectionPlay: "🎮 Spielen",
+        sectionScores: "🏆 Ergebnisse",
         hsModeAll: "Alles",
         hsModeDaily: "📅 Daily",
         hsModeDuel: "⚔️ 1v1",
@@ -1266,6 +1346,22 @@ const translations = {
         dailyCompletedText: "Perfekter Lauf! Du hast alle Daily-Emojis abgeschlossen.",
         dailyToday: "Heute",
         dailyYesterday: "Gestern",
+        loading: "Laden...",
+        hsEveryone: "🌎 Alle",
+        hsMe: "👤 Ich",
+        hsToday: "Heute",
+        hsWeek: "Woche",
+        hsAlltime: "Allzeit",
+        loginFailed: "Anmeldung fehlgeschlagen. Bitte erneut versuchen.",
+        dailyStartFailed: "Daily konnte nicht gestartet werden. Bitte erneut versuchen.",
+        gameCreateFailed: "Spiel konnte nicht erstellt werden.",
+        gameFetchFailed: "Spiel konnte nicht geladen werden. Bitte erneut versuchen.",
+        gameInvalid: "Dieser Spiellink ist nicht mehr gültig.",
+        gameInProgress: "Dieses Duell läuft bereits.",
+        joinFailed: "Beitreten fehlgeschlagen. Bitte erneut versuchen.",
+        soloLabel: "SOLO-LAUF",
+        dailyLabel: "DAILY",
+        dailyRank: "Rangliste",
         cat1: "Smileys & Personen",
         cat2: "Tiere & Natur",
         cat3: "Essen & Trinken",
@@ -1315,6 +1411,14 @@ function applyLanguage() {
     const t = translations[currentLang];
 
     // Titels & Menu
+    document.getElementById('txt-subtitle').innerHTML = t.subtitle;
+    document.getElementById('txt-section-play').innerText = t.sectionPlay;
+    document.getElementById('txt-section-scores').innerText = t.sectionScores;
+    document.getElementById('hs-scope-global').innerText = t.hsEveryone;
+    document.getElementById('hs-scope-personal').innerText = t.hsMe;
+    document.getElementById('hs-tab-today').innerText = t.hsToday;
+    document.getElementById('hs-tab-week').innerText = t.hsWeek;
+    document.getElementById('hs-tab-alltime').innerText = t.hsAlltime;
     document.getElementById('txt-daily').innerText = `${t.sectionDaily} #${getDailyNumber(getUtcDateKey())}`;
     document.getElementById('txt-daily-rank').innerText = t.dailyRank;
     document.getElementById('txt-daily-played-title').innerText = t.dailyPlayedTitle;
@@ -1395,6 +1499,8 @@ let isMultiplayer = false;
 let isDailyMode = false;
 let gameActive = false;
 let myUsername = localStorage.getItem('emodjeez_username') || "Gast";
+// Update direct bij parse (voorkomt flash van 'Gast' bij pagina-reload)
+{ const _pn = document.getElementById('profile-name'); if (_pn) _pn.innerText = myUsername; }
 let gameId = null;
 let playerRole = null; // 'host' or 'guest'
 let unsubscribeGame = null;
@@ -1592,6 +1698,40 @@ function shareGameResultWhatsapp() {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 }
 
+// --- ANDROID BACK BUTTON ---
+// Push een history-entry zodat de Android terugknop iets kan doen
+function pushNavState() {
+    history.pushState({ nav: true }, '', window.location.pathname);
+}
+
+window.addEventListener('popstate', function() {
+    // 1. Sluit de eerste open modal die we vinden
+    const openModal = [...document.querySelectorAll('.modal')].find(
+        m => m.style.display === 'flex'
+    );
+    if (openModal) {
+        openModal.style.display = 'none';
+        // Als het spel al voorbij was (game-over modal) → ga ook terug naar home
+        if (!gameActive && document.getElementById('game-screen').style.display === 'flex') {
+            resetGameState();
+            document.getElementById('start-screen').style.display = 'flex';
+        }
+        return;
+    }
+    // 2. Game-scherm actief → stop het spel
+    if (document.getElementById('game-screen').style.display === 'flex') {
+        quitGame();
+        return;
+    }
+    // 3. Lobby zichtbaar → terug naar home
+    if (document.getElementById('lobby-ui').style.display === 'flex') {
+        document.getElementById('lobby-ui').style.display = 'none';
+        document.getElementById('start-screen').style.display = 'flex';
+        return;
+    }
+    // 4. Op het startscherm: laat Android de app minimaliseren (geen actie nodig)
+});
+
 // --- INITIALIZATION ---
 window.onload = () => {
     applyTheme();
@@ -1619,6 +1759,7 @@ function openNameChange() {
 
 // --- SETTINGS ---
 function openSettings() {
+    pushNavState();
     document.getElementById('settings-username-input').value = myUsername;
     updateThemeButtons();
     document.getElementById('settings-modal').style.display = 'flex';
@@ -1733,6 +1874,7 @@ function saveUsername() {
 }
 
 function openRules() {
+    pushNavState();
     document.getElementById('rules-modal').style.display = 'flex';
 }
 
@@ -1787,6 +1929,7 @@ async function waitForCurrentUser(maxWaitMs = 7000) {
 }
 
 function prepareSinglePlayerScreen(modeLabel) {
+    pushNavState();
     document.getElementById('start-screen').style.display = 'none';
     document.getElementById('game-screen').style.display = 'flex';
     document.getElementById('game-mode-label').innerText = modeLabel;
@@ -1800,7 +1943,7 @@ async function startDailyMode() {
     const t = translations[currentLang];
     const user = await waitForCurrentUser();
     if (!user) {
-        showStatusPopup("Kon geen login maken. Probeer opnieuw.", 'error');
+        showStatusPopup(translations[currentLang].loginFailed, 'error');
         return;
     }
 
@@ -1831,7 +1974,7 @@ async function startDailyMode() {
         });
     } catch (e) {
         console.error("Daily lock error", e);
-        showStatusPopup("Daily starten mislukt. Probeer opnieuw.", 'error');
+        showStatusPopup(translations[currentLang].dailyStartFailed, 'error');
         return;
     }
 
@@ -1843,7 +1986,7 @@ async function startDailyMode() {
     dailyEmojiIndex = 0;
     dailyEmojiSequence = buildDailyEmojiSequence(dailyDateKey);
 
-    prepareSinglePlayerScreen("DAILY");
+    prepareSinglePlayerScreen(translations[currentLang].dailyLabel);
     updateScoreUI();
     nextRoundDaily();
 }
@@ -1858,7 +2001,7 @@ function startSoloGame() {
     gameActive = true;
     runCorrectEmojis = [];
 
-    prepareSinglePlayerScreen("SOLO RUN");
+    prepareSinglePlayerScreen(translations[currentLang].soloLabel);
     
     updateScoreUI();
     nextRoundSolo();
@@ -1926,6 +2069,7 @@ function finishDailyCompleted() {
     }
     document.getElementById('final-score').innerText = currentScore;
     setLastResultContext('daily', currentScore);
+    pushNavState();
     document.getElementById('game-over-modal').style.display = 'flex';
 
     finalizeDailyResult(currentScore);
@@ -2013,6 +2157,7 @@ function gameOverSolo(clickedCat) {
     
     document.getElementById('final-score').innerText = currentScore;
     setLastResultContext(isDailyMode ? 'daily' : 'solo', currentScore);
+    pushNavState();
     document.getElementById('game-over-modal').style.display = 'flex';
 
     if (isDailyMode) {
@@ -2059,6 +2204,7 @@ function quitGame() {
 // --- MULTIPLAYER LOGIC ---
 function showLobby() {
     if(!myUsername || myUsername === "Gast") { openNameChange(); return; }
+    pushNavState();
     document.getElementById('start-screen').style.display = 'none';
     document.getElementById('lobby-ui').style.display = 'flex';
     document.getElementById('lobby-start').style.display = 'block';
@@ -2101,7 +2247,7 @@ async function createOnlineGame() {
         refreshActiveDuelButton();
     } catch(e) {
         console.error(e);
-        showStatusPopup("Fout bij aanmaken spel.", 'error');
+        showStatusPopup(translations[currentLang].gameCreateFailed, 'error');
     }
 }
 
@@ -2138,12 +2284,12 @@ window.checkAndJoin = async function() {
     try {
         snapshot = await getDoc(gameRef);
     } catch (e) {
-        showStatusPopup("Kon het spel niet ophalen. Probeer opnieuw.", 'error');
+        showStatusPopup(translations[currentLang].gameFetchFailed, 'error');
         return;
     }
 
     if (!snapshot.exists()) {
-        showStatusPopup("Deze game-link is niet meer geldig.", 'error');
+        showStatusPopup(translations[currentLang].gameInvalid, 'error');
         resetToHome();
         return;
     }
@@ -2176,7 +2322,7 @@ window.checkAndJoin = async function() {
 
     if (data.status !== 'waiting') {
         // 'playing' met een andere guest erin, of andere onbekende status
-        showStatusPopup("Dit duel is al bezig.", 'error');
+        showStatusPopup(translations[currentLang].gameInProgress, 'error');
         resetToHome();
         return;
     }
@@ -2206,11 +2352,11 @@ window.checkAndJoin = async function() {
         });
     } catch (e) {
         if (e.code === 'notfound') {
-            showStatusPopup("Deze game-link is niet meer geldig.", 'error');
+            showStatusPopup(translations[currentLang].gameInvalid, 'error');
         } else if (e.code === 'full' || e.code === 'notwaiting') {
-            showStatusPopup("Dit duel is al bezig.", 'error');
+            showStatusPopup(translations[currentLang].gameInProgress, 'error');
         } else {
-            showStatusPopup("Kon niet deelnemen. Probeer opnieuw.", 'error');
+            showStatusPopup(translations[currentLang].joinFailed, 'error');
         }
         resetToHome();
         return;
@@ -2331,6 +2477,7 @@ function handleGameState(data) {
         }
         document.getElementById('final-score').innerText = myScore;
         setLastResultContext('duel', myScore);
+        pushNavState();
         document.getElementById('game-over-modal').style.display = 'flex';
         return;
     }
@@ -2438,21 +2585,15 @@ async function evaluateRound() {
 }
 
 function resetToHome() {
-    // Bewaar de huidige taalinstelling in de URL
-    const url = new URL(window.location.href);
-    const currentLangParam = url.searchParams.get('lang');
-    
-    // Maak een schone URL zonder de ?game= parameter
+    resetGameState();
+    // Verwijder ?game= parameter uit de URL zonder page reload
     const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-    const newUrl = new URL(cleanUrl);
-    
-    // Voeg de taal weer toe als die er was, zodat de app in de juiste taal herstart
-    if (currentLangParam) {
-        newUrl.searchParams.set('lang', currentLangParam);
-    }
-    
-    window.history.replaceState({}, document.title, newUrl.toString());
-    window.location.reload();
+    window.history.replaceState({}, document.title, cleanUrl);
+    document.getElementById('game-over-modal').style.display = 'none';
+    document.getElementById('lobby-ui').style.display = 'none';
+    document.getElementById('start-screen').style.display = 'flex';
+    applyLanguage();
+    refreshActiveDuelButton();
 }
 
 // --- HIGHSCORES ---
@@ -2499,11 +2640,13 @@ let dailyHsDateKey = getUtcDateKey();
 let dailyAvailableDateKeys = [];
 
 function openHighscores() {
+    pushNavState();
     document.getElementById('highscores-modal').style.display = 'flex';
     loadHighscores();
 }
 
 function openDailyHighscores() {
+    pushNavState();
     document.getElementById('daily-highscores-modal').style.display = 'flex';
     loadDailyDateOptions();
     loadDailyHighscores();
@@ -2621,10 +2764,12 @@ async function loadHighscores() {
             return;
         }
         
+        const myUid = window.currentUser?.uid;
         listEl.innerHTML = "";
         data.slice(0, 20).forEach((item, idx) => {
+            const isMe = myUid && item.uid === myUid;
             const row = document.createElement('div');
-            row.className = 'hs-row';
+            row.className = 'hs-row' + (isMe ? ' is-me' : '');
             row.innerHTML = `
                 <div class="hs-rank">${idx+1}</div>
                 <div class="hs-name">${item.name}</div>
@@ -2632,7 +2777,7 @@ async function loadHighscores() {
             `;
             listEl.appendChild(row);
         });
-        
+
     } catch(e) {
         console.error(e);
         listEl.innerHTML = "Fout bij laden.";
@@ -2680,10 +2825,12 @@ async function loadDailyHighscores() {
             return;
         }
 
+        const myUid = window.currentUser?.uid;
         listEl.innerHTML = "";
         data.slice(0, 20).forEach((item, idx) => {
+            const isMe = myUid && item.uid === myUid;
             const row = document.createElement('div');
-            row.className = 'hs-row';
+            row.className = 'hs-row' + (isMe ? ' is-me' : '');
             row.innerHTML = `
                 <div class="hs-rank">${idx+1}</div>
                 <div class="hs-name">${item.name || 'Onbekend'}</div>
@@ -2783,6 +2930,7 @@ let hofDailyCacheTime = 0;
 const HOF_CACHE_TTL = 60 * 60 * 1000; // 1 uur — tally verandert max 1x per dag
 
 async function openHallOfFame() {
+    pushNavState();
     document.getElementById('hof-modal').style.display = 'flex';
     loadHallOfFame();
 }
@@ -2852,11 +3000,12 @@ async function loadHallOfFameDailyWins(listEl) {
             }
         }
 
-        // Olympic sort: goud → zilver → brons
-        const sorted = Array.from(tally.values()).sort((a, b) => {
+        // Olympic sort: goud → zilver → brons → alfabetisch bij volledig gelijke stand
+        const sorted = Array.from(tally.entries()).map(([uid, v]) => ({ uid, ...v })).sort((a, b) => {
             if (b.gold !== a.gold) return b.gold - a.gold;
             if (b.silver !== a.silver) return b.silver - a.silver;
-            return b.bronze - a.bronze;
+            if (b.bronze !== a.bronze) return b.bronze - a.bronze;
+            return a.name.localeCompare(b.name);
         });
 
         if (sorted.length === 0) {
@@ -2865,10 +3014,12 @@ async function loadHallOfFameDailyWins(listEl) {
         }
 
         const rankMedals = ['🥇', '🥈', '🥉'];
+        const myUid = window.currentUser?.uid;
         listEl.innerHTML = "";
         sorted.slice(0, 20).forEach((item, idx) => {
             const row = document.createElement('div');
-            row.className = 'hs-row';
+            const isMe = myUid && item.uid === myUid;
+            row.className = 'hs-row' + (isMe ? ' is-me' : '');
             const rank = rankMedals[idx] ?? idx + 1;
             row.innerHTML = `
                 <div class="hs-rank">${rank}</div>
@@ -2899,11 +3050,13 @@ async function loadHallOfFameDuelWins(listEl) {
         }
 
         const hofMedals = ['🥇', '🥈', '🥉'];
+        const myUid = window.currentUser?.uid;
         listEl.innerHTML = "";
         snapshot.docs.forEach((d, idx) => {
             const item = d.data();
+            const isMe = myUid && d.id === myUid;
             const row = document.createElement('div');
-            row.className = 'hs-row';
+            row.className = 'hs-row' + (isMe ? ' is-me' : '');
             const rank = hofMedals[idx] ?? idx + 1;
             row.innerHTML = `
                 <div class="hs-rank">${rank}</div>

@@ -1,46 +1,86 @@
-const CACHE_NAME = 'emodjeez-v2';
-const ASSETS_TO_CACHE = [
-  './',
+const CACHE_NAME = 'emodjeez-v3';
+const APP_ASSETS = [
   './index.html',
   './manifest.json',
   './logo.webp',
-  'https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Roboto:wght@400;700;900&display=swap',
-  'https://fonts.gstatic.com/s/fredoka/v9/X7nP4b87MqzP8S_O6Y4.woff2'
+  './logo.png',
 ];
 
-// Installatie: Bestanden opslaan in de cache
+// Firebase, gstatic en andere externe domeinen: nooit cachen
+const SKIP_CACHE_PATTERNS = [
+  'firebaseio.com',
+  'firebasestorage',
+  'googleapis.com',
+  'gstatic.com',
+  'flagcdn.com',
+  'firebase',
+];
+
+function shouldSkipCache(url) {
+  return SKIP_CACHE_PATTERNS.some(pattern => url.includes(pattern));
+}
+
+// Installatie: app-assets in cache zetten
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('Bestanden worden gecached voor offline gebruik');
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_ASSETS))
   );
   self.skipWaiting();
 });
 
-// Activeren: Oude caches opruimen
+// Activeren: verwijder verouderde caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            console.log('Oude cache verwijderd');
-            return caches.delete(cache);
-          }
-        })
-      );
-    })
+    caches.keys().then((cacheNames) =>
+      Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME)
+          .map((name) => caches.delete(name))
+      )
+    )
   );
   return self.clients.claim();
 });
 
-// Fetch: Eerst proberen van netwerk, anders uit cache
+// Fetch strategie:
+// - Firebase/externe API's: altijd netwerk (nooit cachen)
+// - App-navigatie (HTML): stale-while-revalidate (direct uit cache + update op achtergrond)
+// - Overige assets: cache-first, netwerk als fallback
 self.addEventListener('fetch', (event) => {
+  const url = event.request.url;
+
+  // Externe/Firebase verzoeken: gewoon doorlaten, geen service worker tussenkomst
+  if (shouldSkipCache(url) || !url.startsWith(self.location.origin)) {
+    return;
+  }
+
+  // Navigatieverzoeken (pagina laden): stale-while-revalidate
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match('./index.html');
+        const networkFetch = fetch(event.request).then((response) => {
+          if (response.ok) cache.put('./index.html', response.clone());
+          return response;
+        }).catch(() => null);
+
+        // Geef direct de gecachede versie terug als die er is, anders wacht op netwerk
+        return cached || networkFetch || caches.match('./index.html');
+      })
+    );
+    return;
+  }
+
+  // Statische assets: cache-first
   event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(event.request);
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
+        if (response.ok) {
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+        }
+        return response;
+      });
     })
   );
 });
