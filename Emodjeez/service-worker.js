@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emodjeez-v3';
+const CACHE_NAME = 'emodjeez-v4';
 const APP_ASSETS = [
   './index.html',
   './manifest.json',
@@ -54,8 +54,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigatieverzoeken (pagina laden): stale-while-revalidate
+  // Navigatieverzoeken (pagina laden)
   if (event.request.mode === 'navigate') {
+    const pathname = new URL(event.request.url).pathname;
+
+    // Specifieke HTML-pagina's (reset-data.html, privacy.html etc.): altijd van netwerk
+    if (pathname !== '/' && pathname !== '/index.html' && pathname.endsWith('.html')) {
+      event.respondWith(fetch(event.request));
+      return;
+    }
+
+    // Hoofd-app: stale-while-revalidate
     event.respondWith(
       caches.open(CACHE_NAME).then(async (cache) => {
         const cached = await cache.match('./index.html');
