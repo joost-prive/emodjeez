@@ -376,6 +376,29 @@ body {
             flex: 1; font-size: 1rem; padding: 16px 8px; margin-bottom: 0;
         }
 
+        /* --- Offline banner --- */
+        .offline-banner {
+            display: none;
+            background: rgba(255, 165, 0, 0.15);
+            border: 1px solid rgba(255, 165, 0, 0.4);
+            border-radius: 12px;
+            padding: 8px 14px;
+            margin-bottom: 12px;
+            font-size: 0.85rem;
+            color: #f39c12;
+            text-align: center;
+            font-weight: 600;
+        }
+        .offline-banner.visible { display: block; }
+
+        .btn:disabled, .btn-link-secondary:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            filter: grayscale(0.6);
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
         /* --- Scores 2×2 grid --- */
         .menu-secondary-row {
             display: grid;
@@ -560,9 +583,13 @@ body {
     <p class="app-subtitle" id="txt-subtitle">Emoji's kennen we allemaal!<br>Maar onder welke categorie ze vallen bij WhatsApp?<br>Djeez, best moeilijk!</p>
     <div class="menu-card">
 
+        <div id="offline-banner" class="offline-banner">
+            <span id="txt-offline-banner">📶 Offline – alleen Solo Run beschikbaar, scores worden niet opgeslagen.</span>
+        </div>
+
         <div class="menu-section-label" id="txt-section-play">🎮 Spelen</div>
 
-        <button class="btn btn-daily" onclick="startDailyMode()">
+        <button id="btn-daily-menu" class="btn btn-daily" onclick="startDailyMode()">
             <span>📅</span> <span id="txt-daily">Daily</span>
         </button>
 
@@ -570,7 +597,7 @@ body {
             <button class="btn btn-solo" onclick="startSoloGame()">
                 <span>👤</span> <span id="txt-solo">Solo</span>
             </button>
-            <button class="btn btn-multi" onclick="openDuelEntry()">
+            <button id="btn-multi-menu" class="btn btn-multi" onclick="openDuelEntry()">
                 <span>⚔️</span> <span id="txt-multi">1 vs 1</span>
             </button>
         </div>
@@ -579,10 +606,10 @@ body {
 
         <div class="menu-section-label" id="txt-section-scores">🏆 Scores</div>
         <div class="menu-secondary-row">
-            <button class="btn-link-secondary" onclick="openDailyHighscores()">📅 <span id="txt-daily-rank">Daily Ranglijst</span> ›</button>
-            <button class="btn-link-secondary" onclick="openHallOfFame('daily')">🥇 <span id="txt-daily-medals">Daily Medailles</span> ›</button>
-            <button class="btn-link-secondary" onclick="openHighscores()">🏆 <span id="txt-high">Highscores</span> ›</button>
-            <button class="btn-link-secondary" onclick="openHallOfFame('duel')">⚔️ <span id="txt-duel-wins">1vs1 Wins</span> ›</button>
+            <button id="btn-score-daily-rank" class="btn-link-secondary" onclick="openDailyHighscores()">📅 <span id="txt-daily-rank">Daily Ranglijst</span> ›</button>
+            <button id="btn-score-daily-medals" class="btn-link-secondary" onclick="openHallOfFame('daily')">🥇 <span id="txt-daily-medals">Daily Medailles</span> ›</button>
+            <button id="btn-score-highscores" class="btn-link-secondary" onclick="openHighscores()">🏆 <span id="txt-high">Highscores</span> ›</button>
+            <button id="btn-score-duel-wins" class="btn-link-secondary" onclick="openHallOfFame('duel')">⚔️ <span id="txt-duel-wins">1vs1 Wins</span> ›</button>
         </div>
 
     </div>
@@ -1084,6 +1111,7 @@ const translations = {
         itWas: "Het was:",
         playAgain: "Opnieuw Spelen",
         backToMenu: "Terug naar Menu",
+        offlineBanner: "📶 Offline – alleen Solo Run beschikbaar, scores worden niet opgeslagen.",
         duelTitle: "1 vs 1 Duel",
         duelDesc: "Speel tegelijk tegen een vriend.<br>Wie het eerst een fout maakt verliest!",
         newGame: "Nieuw Spel Starten",
@@ -1194,6 +1222,7 @@ const translations = {
         itWas: "It was:",
         playAgain: "Play Again",
         backToMenu: "Back to Menu",
+        offlineBanner: "📶 Offline – only Solo Run available, scores will not be saved.",
         duelTitle: "1 vs 1 Duel",
         duelDesc: "Play against a friend in real-time.<br>First one to make a mistake loses!",
         newGame: "Start New Game",
@@ -1305,6 +1334,7 @@ const translations = {
         itWas: "Es war:",
         playAgain: "Noch einmal spielen",
         backToMenu: "Zurück zum Menü",
+        offlineBanner: "📶 Offline – nur Solo-Lauf verfügbar, Punkte werden nicht gespeichert.",
         duelTitle: "1 gegen 1 Duell",
         duelDesc: "Spiele gleichzeitig gegen einen Freund.<br>Wer zuerst einen Fehler macht, verliert!",
         newGame: "Neues Spiel starten",
@@ -1438,6 +1468,7 @@ function applyLanguage() {
     document.getElementById('hs-tab-week').innerText = t.hsWeek;
     document.getElementById('hs-tab-alltime').innerText = t.hsAlltime;
     document.getElementById('txt-daily').innerText = `${t.sectionDaily} #${getDailyNumber(getUtcDateKey())}`;
+    document.getElementById('txt-offline-banner').innerText = t.offlineBanner;
     document.getElementById('txt-daily-rank').innerText = t.dailyRank;
     document.getElementById('txt-daily-medals').innerText = t.dailyMedals;
     document.getElementById('txt-duel-wins').innerText = t.duelWins;
@@ -1754,6 +1785,31 @@ window.addEventListener('popstate', function() {
     // 4. Op het startscherm: laat Android de app minimaliseren (geen actie nodig)
 });
 
+// --- OFFLINE SUPPORT ---
+const ONLINE_REQUIRED_BTNS = [
+    'btn-daily-menu', 'btn-multi-menu',
+    'btn-score-daily-rank', 'btn-score-daily-medals',
+    'btn-score-highscores', 'btn-score-duel-wins'
+];
+
+function updateOnlineStatus() {
+    const online = navigator.onLine;
+    const banner = document.getElementById('offline-banner');
+    if (banner) banner.classList.toggle('visible', !online);
+    ONLINE_REQUIRED_BTNS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = !online;
+    });
+    if (!online) {
+        const t = translations[currentLang];
+        const bannerText = document.getElementById('txt-offline-banner');
+        if (bannerText) bannerText.innerText = t.offlineBanner;
+    }
+}
+
+window.addEventListener('online',  updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+
 // --- INITIALIZATION ---
 window.onload = () => {
     applyTheme();
@@ -1761,6 +1817,7 @@ window.onload = () => {
     updateProfileDisplay();
     refreshActiveDuelButton();
     showWelcomeIfNeeded();
+    updateOnlineStatus();
     // Check if user followed a link
     if (window.pendingInviteId) {
         window.checkAndJoin();
