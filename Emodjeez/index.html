@@ -17,6 +17,8 @@
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1e3799">
+<link rel="icon" type="image/png" href="./logo.png">
+<link rel="apple-touch-icon" href="./logo.png">
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
@@ -1580,6 +1582,7 @@ function clearGameSubscription() {
 async function findActiveDuelForUser() {
     if (!window.currentUser) return null;
 
+    try {
     const { collection, query, where, limit, getDocs } = window.firebaseFuncs;
     const ref = collection(window.db, "emodjeez_games");
 
@@ -1609,6 +1612,10 @@ async function findActiveDuelForUser() {
 
     candidates.sort((a, b) => b.ts - a.ts);
     return candidates[0];
+    } catch(e) {
+        console.error('findActiveDuelForUser fout:', e);
+        return null;
+    }
 }
 
 function updateLobbyActiveState() {
@@ -2580,16 +2587,20 @@ function handleGameState(data) {
 // Update de verzend-status
 async function handleMultiplayerMove(catId) {
     if (!gameActive) return;
+    if (!gameId || !playerRole) { console.error('handleMultiplayerMove: gameId of playerRole ontbreekt'); return; }
     const t = translations[currentLang];
     const correct = (catId === currentEmojiData.c);
     const { updateDoc, doc } = window.firebaseFuncs;
     const field = playerRole === 'host' ? 'hostMove' : 'guestMove';
-    
-    await updateDoc(doc(window.db, "emodjeez_games", gameId), {
-        [field]: { correct: correct, categoryId: catId, timestamp: Date.now() }
-    });
-    
-    document.getElementById('status-message').innerText = t.statusSent;
+    try {
+        await updateDoc(doc(window.db, "emodjeez_games", gameId), {
+            [field]: { correct: correct, categoryId: catId, timestamp: Date.now() }
+        });
+        document.getElementById('status-message').innerText = t.statusSent;
+    } catch(e) {
+        console.error('handleMultiplayerMove fout:', e);
+        showStatusPopup(t.gameFetchFailed, 'error');
+    }
 }
 
 // Update de deel-functies
