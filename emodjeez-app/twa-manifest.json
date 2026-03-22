@@ -16,7 +16,7 @@
   "iconUrl": "https://emodjeez.net/logo.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
-    "path": "C:\\Users\\joost.vandeven\\Documents\\23) EmoDjeez\\emodjeez-app\\android.keystore",
+    "path": "C:\\Users\\joost.vandeven\\Documents\\23) EmoDjeez\\DEV\\emodjeez-app\\android.keystore",
     "alias": "android"
   },
   "appVersionName": "1.0.0",
