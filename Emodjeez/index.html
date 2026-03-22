@@ -1502,11 +1502,6 @@ function applyLanguage() {
     const welcomeRules = document.getElementById('welcome-rules-content');
     if (welcomeRules && welcomeRules.innerHTML) welcomeRules.innerHTML = t.rulesText;
 
-    // Highscore mode bar
-    document.getElementById('hs-mode-all').innerText = t.hsModeAll;
-    document.getElementById('hs-mode-solo').innerText = t.hsModeSolo;
-    document.getElementById('hs-mode-daily').innerText = t.hsModeDaily;
-    document.getElementById('hs-mode-duel').innerText = t.hsModeDuel;
     
     // In-game & Modals algemeen
     document.querySelector('.game-instruction').innerText = t.instruction;
