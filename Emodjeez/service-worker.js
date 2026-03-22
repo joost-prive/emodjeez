@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emodjeez-v4';
+const CACHE_NAME = 'emodjeez-v5';
 const APP_ASSETS = [
   './index.html',
   './manifest.json',
@@ -58,25 +58,23 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
     const pathname = new URL(event.request.url).pathname;
 
-    // Specifieke HTML-pagina's (reset-data.html, privacy.html etc.): altijd van netwerk
-    if (pathname !== '/' && pathname !== '/index.html' && pathname.endsWith('.html')) {
-      event.respondWith(fetch(event.request));
+    // Alleen de hoofd-app (/ of /index.html) uit cache bedienen
+    if (pathname === '/' || pathname === '/index.html') {
+      event.respondWith(
+        caches.open(CACHE_NAME).then(async (cache) => {
+          const cached = await cache.match('./index.html');
+          const networkFetch = fetch(event.request).then((response) => {
+            if (response.ok) cache.put('./index.html', response.clone());
+            return response;
+          }).catch(() => null);
+          return cached || networkFetch || caches.match('./index.html');
+        })
+      );
       return;
     }
 
-    // Hoofd-app: stale-while-revalidate
-    event.respondWith(
-      caches.open(CACHE_NAME).then(async (cache) => {
-        const cached = await cache.match('./index.html');
-        const networkFetch = fetch(event.request).then((response) => {
-          if (response.ok) cache.put('./index.html', response.clone());
-          return response;
-        }).catch(() => null);
-
-        // Geef direct de gecachede versie terug als die er is, anders wacht op netwerk
-        return cached || networkFetch || caches.match('./index.html');
-      })
-    );
+    // Alle andere pagina's (reset-data, privacy, etc.): altijd van netwerk
+    event.respondWith(fetch(event.request));
     return;
   }
 
