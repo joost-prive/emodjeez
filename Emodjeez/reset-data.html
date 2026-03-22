@@ -6,8 +6,10 @@
 <style>
   body { font-family: monospace; background: #111; color: #0f0; padding: 20px; }
   button { background: #c0392b; color: #fff; border: none; padding: 12px 24px;
-           font-size: 1rem; cursor: pointer; border-radius: 6px; margin: 10px 0; }
+           font-size: 1rem; cursor: pointer; border-radius: 6px; margin: 10px 0; display: block; }
   button:disabled { background: #555; cursor: default; }
+  input { font-size: 1rem; padding: 10px; border-radius: 6px; border: none;
+          background: #222; color: #fff; margin: 10px 0; width: 220px; }
   #log { white-space: pre-wrap; margin-top: 20px; font-size: 0.85rem; line-height: 1.6; }
   .ok  { color: #2ecc71; }
   .err { color: #e74c3c; }
@@ -18,17 +20,18 @@
 <body>
 <h2>⚠️ Emodjeez Data Reset</h2>
 <p>Dit wist <strong>alle</strong> testdata: daily results, highscores, duel-wins, daily-winners.</p>
-<p>Log eerst in met Google als je dat nog niet gedaan hebt.</p>
-<button id="btnLogin">1. Inloggen met Google</button><br>
-<button id="btnReset" disabled>2. Alle testdata wissen</button>
+<input type="password" id="pwInput" placeholder="Wachtwoord" />
+<button id="btnUnlock">Ontgrendelen</button>
+<button id="btnReset" disabled>🗑 Alle testdata wissen</button>
 <div id="log"></div>
 
 <script type="module">
-import { initializeApp }       from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged }
-                                from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { initializeApp }    from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 import { getFirestore, collection, getDocs, deleteDoc, doc }
-                                from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+                            from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+const RESET_PASSWORD = 'emodjeez2026';
 
 const firebaseConfig = {
     apiKey: "AIzaSyC-WOchuDhnBfUetqGIWWX9JBtCdHgNrkU",
@@ -39,7 +42,7 @@ const firebaseConfig = {
     appId: "1:560834312358:web:f95e86cc3b5a90e84d81c5"
 };
 
-const app  = initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 const logEl = document.getElementById('log');
@@ -48,19 +51,20 @@ function log(msg, cls='') {
     logEl.innerHTML += `<span class="${cls}">${msg}\n</span>`;
 }
 
-// --- Auth ---
-onAuthStateChanged(auth, user => {
-    if (user) {
-        log(`✅ Ingelogd als: ${user.email}`, 'ok');
-        document.getElementById('btnReset').disabled = false;
+document.getElementById('btnUnlock').addEventListener('click', async () => {
+    const pw = document.getElementById('pwInput').value;
+    if (pw !== RESET_PASSWORD) {
+        log('❌ Verkeerd wachtwoord.', 'err');
+        return;
     }
-});
-
-document.getElementById('btnLogin').addEventListener('click', async () => {
     try {
-        await signInWithPopup(auth, new GoogleAuthProvider());
+        await signInAnonymously(auth);
+        log('✅ Ingelogd. Je kunt nu de data wissen.', 'ok');
+        document.getElementById('btnReset').disabled = false;
+        document.getElementById('btnUnlock').disabled = true;
+        document.getElementById('pwInput').disabled = true;
     } catch (e) {
-        log(`Login fout: ${e.message}`, 'err');
+        log(`❌ Auth fout: ${e.message}`, 'err');
     }
 });
 
@@ -75,7 +79,6 @@ async function deleteCollection(colPath) {
 }
 
 async function deleteDailyResults() {
-    // emodjeez_daily_results/{dateKey}/entries/{uid}
     log('→ emodjeez_daily_results ophalen...', 'inf');
     const datesSnap = await getDocs(collection(db, 'emodjeez_daily_results'));
     log(`  ${datesSnap.size} datum-documenten gevonden`, 'inf');
@@ -88,7 +91,6 @@ async function deleteDailyResults() {
         for (const e of entriesSnap.docs) {
             await deleteDoc(doc(db, 'emodjeez_daily_results', dateKey, 'entries', e.id));
         }
-        // verwijder ook het datum-document zelf
         await deleteDoc(doc(db, 'emodjeez_daily_results', dateKey));
     }
     log('  ✓ emodjeez_daily_results leeg', 'ok');
@@ -99,7 +101,6 @@ document.getElementById('btnReset').addEventListener('click', async () => {
     if (!confirm('Weet je het zeker? Dit is onomkeerbaar!')) return;
     document.getElementById('btnReset').disabled = true;
     log('\n🚀 Start reset...', 'warn');
-
     try {
         await deleteDailyResults();
         await deleteCollection('emodjeez_highscores');
@@ -107,7 +108,7 @@ document.getElementById('btnReset').addEventListener('click', async () => {
         await deleteCollection('emodjeez_daily_winners');
         await deleteCollection('emodjeez_games');
         log('\n🎉 KLAAR! Alle testdata is gewist.', 'ok');
-        log('Je kunt dit bestand nu sluiten.', 'ok');
+        log('Je kunt dit tabblad nu sluiten.', 'ok');
     } catch (e) {
         log(`\n❌ Fout: ${e.message}`, 'err');
         log('Controleer de Firestore-regels (mogelijk heb je geen delete-rechten).', 'warn');
