@@ -88,7 +88,7 @@
             --surface: rgba(255, 255, 255, 0.65);
             --surface-light: rgba(255, 255, 255, 0.85);
             --text-main: #1a1a2e;
-            --text-muted: rgba(0,0,0,0.45);
+            --text-muted: rgba(0,0,0,0.6);
             --modal-bg: rgba(0,0,0,0.6);
             --modal-surface: #f0f4ff;
             --shadow: 0 8px 20px rgba(0,0,0,0.15);
@@ -696,7 +696,7 @@ body {
         <div id="go-duel-details" style="display:none; margin: 12px 0 18px 0; text-align:left; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 12px;"></div>
         <div class="score-pill" style="font-size:2.5rem; margin-bottom:20px;">Score: <span id="final-score">0</span></div>
         <button id="btn-share-result" class="btn btn-multi" onclick="shareGameResultWhatsapp()" style="font-size:1rem;">📱 Deel op WhatsApp</button>
-        <button class="btn btn-solo" onclick="resetToHome()">Opnieuw Spelen</button>
+        <button id="btn-game-over-action" class="btn btn-solo" onclick="resetToHome()">Opnieuw Spelen</button>
     </div>
 </div>
 
@@ -1083,6 +1083,7 @@ const translations = {
         wrong: "Dat was fout!",
         itWas: "Het was:",
         playAgain: "Opnieuw Spelen",
+        backToMenu: "Terug naar Menu",
         duelTitle: "1 vs 1 Duel",
         duelDesc: "Speel tegelijk tegen een vriend.<br>Wie het eerst een fout maakt verliest!",
         newGame: "Nieuw Spel Starten",
@@ -1192,6 +1193,7 @@ const translations = {
         wrong: "That was wrong!",
         itWas: "It was:",
         playAgain: "Play Again",
+        backToMenu: "Back to Menu",
         duelTitle: "1 vs 1 Duel",
         duelDesc: "Play against a friend in real-time.<br>First one to make a mistake loses!",
         newGame: "Start New Game",
@@ -1302,6 +1304,7 @@ const translations = {
         wrong: "Das war falsch!",
         itWas: "Es war:",
         playAgain: "Noch einmal spielen",
+        backToMenu: "Zurück zum Menü",
         duelTitle: "1 gegen 1 Duell",
         duelDesc: "Spiele gleichzeitig gegen einen Freund.<br>Wer zuerst einen Fehler macht, verliert!",
         newGame: "Neues Spiel starten",
@@ -1478,7 +1481,9 @@ function applyLanguage() {
     document.getElementById('rules-h2').innerText = t.rulesTitle;
     document.getElementById('rules-content').innerHTML = t.rulesText;
     document.querySelector('#rules-modal .btn-solo').innerText = t.rulesBtn;
-    document.querySelector('#game-over-modal .btn-solo').innerText = t.playAgain;
+    const isDaily = lastResultContext && lastResultContext.mode === 'daily';
+    document.getElementById('btn-game-over-action').innerText = isDaily ? t.backToMenu : t.playAgain;
+    document.getElementById('btn-share-result').innerText = t.shareResultBtn;
     document.querySelector('a[href="privacy.html"]').innerText = t.privacy;
 
     // Lobby UI vertalingen
@@ -1495,8 +1500,6 @@ function applyLanguage() {
     document.querySelector('#lobby-share .btn[onclick="shareWhatsapp()"]').innerText = t.shareWA;
     document.querySelector('#lobby-share .btn[onclick="copyLink()"]').innerText = t.copyLink;
     document.querySelector('#lobby-ui .btn-back').innerText = t.back;
-	document.querySelector('#game-over-modal .btn-solo').innerText = t.playAgain;
-	document.getElementById('btn-share-result').innerText = t.shareResultBtn;
 	
     
     // Game Header
@@ -2088,6 +2091,7 @@ function finishDailyCompleted() {
     }
     document.getElementById('final-score').innerText = currentScore;
     setLastResultContext('daily', currentScore);
+    document.getElementById('btn-game-over-action').innerText = translations[currentLang].backToMenu;
     pushNavState();
     document.getElementById('game-over-modal').style.display = 'flex';
 
@@ -2952,9 +2956,7 @@ async function openHallOfFame(tab = 'daily') {
     hofTab = tab;
     const t = translations[currentLang];
     document.getElementById('hof-modal-title').innerText = tab === 'daily' ? t.hofDailyTitle : t.hofDuelTitle;
-    document.querySelectorAll('#hof-tab-bar .tab-btn').forEach((b, i) => {
-        b.classList.toggle('active', (i === 0 && tab === 'daily') || (i === 1 && tab === 'duel'));
-    });
+    document.getElementById('hof-tab-bar').style.display = 'none';
     pushNavState();
     document.getElementById('hof-modal').style.display = 'flex';
     loadHallOfFame();
