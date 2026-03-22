@@ -21,6 +21,7 @@ emodjeez-app/captures/
 
 # Signing material / secrets
 *.keystore
+keystore.properties
 *.jks
 *.p12
 *.pem

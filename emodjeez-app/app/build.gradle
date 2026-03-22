@@ -152,9 +152,21 @@ android {
 
         
     }
+    signingConfigs {
+        release {
+            def keystorePropsFile = rootProject.file("keystore.properties")
+            def keystoreProps = new Properties()
+            keystoreProps.load(new FileInputStream(keystorePropsFile))
+            storeFile     file(keystoreProps['storeFile'])
+            storePassword keystoreProps['storePassword']
+            keyAlias      keystoreProps['keyAlias']
+            keyPassword   keystoreProps['keyPassword']
+        }
+    }
     buildTypes {
         release {
             minifyEnabled true
+            signingConfig signingConfigs.release
         }
     }
     compileOptions {
