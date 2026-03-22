@@ -376,18 +376,20 @@ body {
             flex: 1; font-size: 1rem; padding: 16px 8px; margin-bottom: 0;
         }
 
-        /* --- Kleine secondary link onder speelknoppen --- */
+        /* --- Scores 2×2 grid --- */
         .menu-secondary-row {
-            display: flex; justify-content: center; gap: 12px;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
             margin-top: 4px; margin-bottom: 12px;
+            width: 100%;
         }
         .btn-link-secondary {
             background: none; border: none; cursor: pointer;
             color: var(--text-muted); font-family: 'Fredoka', sans-serif;
             font-size: 0.9rem; font-weight: 600; padding: 4px 8px;
             text-decoration: underline; text-underline-offset: 3px;
-            transition: color 0.15s;
+            transition: color 0.15s; text-align: center;
         }
         .btn-link-secondary:hover { color: var(--text-main); }
 
@@ -577,9 +579,10 @@ body {
 
         <div class="menu-section-label" id="txt-section-scores">🏆 Scores</div>
         <div class="menu-secondary-row">
-            <button class="btn-link-secondary" onclick="openDailyHighscores()">📅 <span id="txt-daily-rank">Ranglijst</span> ›</button>
-            <button class="btn-link-secondary" onclick="openHighscores()">🏆 <span id="txt-high">Scores</span> ›</button>
-            <button class="btn-link-secondary" onclick="openHallOfFame()">🎖️ Hall of Fame ›</button>
+            <button class="btn-link-secondary" onclick="openDailyHighscores()">📅 <span id="txt-daily-rank">Daily Ranglijst</span> ›</button>
+            <button class="btn-link-secondary" onclick="openHallOfFame('daily')">🥇 <span id="txt-daily-medals">Daily Medailles</span> ›</button>
+            <button class="btn-link-secondary" onclick="openHighscores()">🏆 <span id="txt-high">Highscores</span> ›</button>
+            <button class="btn-link-secondary" onclick="openHallOfFame('duel')">⚔️ <span id="txt-duel-wins">1vs1 Wins</span> ›</button>
         </div>
 
     </div>
@@ -735,12 +738,12 @@ body {
 <div id="hof-modal" class="modal">
     <div class="modal-content" style="max-width: 450px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h2 style="margin:0; color:var(--primary);">🎖️ Hall of Fame</h2>
+            <h2 id="hof-modal-title" style="margin:0; color:var(--primary);">🥇 Daily Medailles</h2>
             <span style="font-size:2rem; cursor:pointer;" onclick="document.getElementById('hof-modal').style.display='none'">&times;</span>
         </div>
         <div class="tab-bar" id="hof-tab-bar">
-            <button class="tab-btn active" onclick="switchHofTab('daily', this)">📅 Daily Wins</button>
-            <button class="tab-btn" onclick="switchHofTab('duel', this)">⚔️ Duel Wins</button>
+            <button class="tab-btn active" id="hof-tab-daily-btn" onclick="switchHofTab('daily', this)">📅 Daily Medailles</button>
+            <button class="tab-btn" id="hof-tab-duel-btn" onclick="switchHofTab('duel', this)">⚔️ 1vs1 Wins</button>
         </div>
         <div id="hof-list" class="score-list" style="max-height: 350px;">Laden...</div>
     </div>
@@ -1103,6 +1106,10 @@ const translations = {
         welcomePlay: "Spelen! 🎮",
         sectionPlay: "🎮 Spelen",
         sectionScores: "🏆 Scores",
+        dailyMedals: "Daily Medailles",
+        duelWins: "1vs1 Wins",
+        hofDailyTitle: "🥇 Daily Medailles",
+        hofDuelTitle: "⚔️ 1vs1 Wins",
         hsModeAll: "Alles",
         hsModeDaily: "📅 Daily",
         hsModeDuel: "⚔️ 1v1",
@@ -1208,6 +1215,10 @@ const translations = {
         welcomePlay: "Play! 🎮",
         sectionPlay: "🎮 Play",
         sectionScores: "🏆 Scores",
+        dailyMedals: "Daily Medals",
+        duelWins: "1vs1 Wins",
+        hofDailyTitle: "🥇 Daily Medals",
+        hofDuelTitle: "⚔️ 1vs1 Wins",
         hsModeAll: "All",
         hsModeDaily: "📅 Daily",
         hsModeDuel: "⚔️ 1v1",
@@ -1314,6 +1325,10 @@ const translations = {
         welcomePlay: "Spielen! 🎮",
         sectionPlay: "🎮 Spielen",
         sectionScores: "🏆 Ergebnisse",
+        dailyMedals: "Daily Medaillen",
+        duelWins: "1vs1 Siege",
+        hofDailyTitle: "🥇 Daily Medaillen",
+        hofDuelTitle: "⚔️ 1vs1 Siege",
         hsModeAll: "Alles",
         hsModeDaily: "📅 Daily",
         hsModeDuel: "⚔️ 1v1",
@@ -1421,6 +1436,10 @@ function applyLanguage() {
     document.getElementById('hs-tab-alltime').innerText = t.hsAlltime;
     document.getElementById('txt-daily').innerText = `${t.sectionDaily} #${getDailyNumber(getUtcDateKey())}`;
     document.getElementById('txt-daily-rank').innerText = t.dailyRank;
+    document.getElementById('txt-daily-medals').innerText = t.dailyMedals;
+    document.getElementById('txt-duel-wins').innerText = t.duelWins;
+    document.getElementById('hof-tab-daily-btn').innerText = `📅 ${t.dailyMedals}`;
+    document.getElementById('hof-tab-duel-btn').innerText = `⚔️ ${t.duelWins}`;
     document.getElementById('txt-daily-played-title').innerText = t.dailyPlayedTitle;
     document.getElementById('btn-daily-played-board').innerText = t.dailyPlayedBoard;
     document.getElementById('btn-daily-played-close').innerText = t.close;
@@ -2929,7 +2948,13 @@ let hofDailyCache = null;
 let hofDailyCacheTime = 0;
 const HOF_CACHE_TTL = 60 * 60 * 1000; // 1 uur — tally verandert max 1x per dag
 
-async function openHallOfFame() {
+async function openHallOfFame(tab = 'daily') {
+    hofTab = tab;
+    const t = translations[currentLang];
+    document.getElementById('hof-modal-title').innerText = tab === 'daily' ? t.hofDailyTitle : t.hofDuelTitle;
+    document.querySelectorAll('#hof-tab-bar .tab-btn').forEach((b, i) => {
+        b.classList.toggle('active', (i === 0 && tab === 'daily') || (i === 1 && tab === 'duel'));
+    });
     pushNavState();
     document.getElementById('hof-modal').style.display = 'flex';
     loadHallOfFame();
@@ -2939,6 +2964,8 @@ function switchHofTab(tab, btn) {
     hofTab = tab;
     document.querySelectorAll('#hof-tab-bar .tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    const t = translations[currentLang];
+    document.getElementById('hof-modal-title').innerText = tab === 'daily' ? t.hofDailyTitle : t.hofDuelTitle;
     loadHallOfFame();
 }
 
