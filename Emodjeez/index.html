@@ -2601,7 +2601,7 @@ async function handleMultiplayerMove(catId) {
 // Update de deel-functies
 async function copyLink() {
     const t = translations[currentLang];
-    const url = window.location.origin + window.location.pathname + "?game=" + gameId;
+    const url = window.location.origin + "/?game=" + gameId;
     try {
         await navigator.clipboard.writeText(url);
         showStatusPopup(t.linkCopied, 'success');
@@ -2613,7 +2613,7 @@ async function copyLink() {
 
 function shareWhatsapp() {
     const t = translations[currentLang];
-    const url = window.location.origin + window.location.pathname + "?game=" + gameId;
+    const url = window.location.origin + "/?game=" + gameId;
     const text = t.waText + url;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 }
