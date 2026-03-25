@@ -2131,8 +2131,54 @@ async function finalizeDailyResult(score) {
             clientFinishedTimestamp: Date.now()
         });
         saveHighscore(score, 'daily');
+        updateDailyWinnerDoc(dailyDateKey); // fire & forget: winner doc bijwerken op de achtergrond
     } catch (e) {
         console.error("Daily finalize error", e);
+    }
+}
+
+// Berekent top 3 voor een dag en schrijft/updatet emodjeez_daily_winners/[dateKey].
+// Wordt aangeroepen na elke daily-afronding én als backfill bij lege collectie.
+async function updateDailyWinnerDoc(dateKey) {
+    try {
+        const { collection, query, limit, getDocs, doc, setDoc } = window.firebaseFuncs;
+        const ref = collection(window.db, "emodjeez_daily_results", dateKey, "entries");
+        const snap = await getDocs(query(ref, limit(500)));
+
+        let entries = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+        entries = entries.filter(e => e.finished !== false);
+        entries.sort((a, b) => {
+            const sd = (b.score || 0) - (a.score || 0);
+            if (sd !== 0) return sd;
+            return (a.clientFinishedTimestamp || 0) - (b.clientFinishedTimestamp || 0);
+        });
+
+        const top3 = [];
+        const seen = new Set();
+        for (const e of entries) {
+            if (!seen.has(e.uid)) { seen.add(e.uid); top3.push(e); }
+            if (top3.length === 3) break;
+        }
+
+        if (top3.length === 0) return;
+
+        const places = ['first', 'second', 'third'];
+        const docData = { dateKey, recordedAt: Date.now() };
+        top3.forEach((e, i) => {
+            docData[places[i]] = { uid: e.uid, name: e.name };
+        });
+
+        await setDoc(doc(window.db, "emodjeez_daily_winners", dateKey), docData);
+
+        // HoF cache invalideren zodat de volgende open altijd verse data toont
+        hofDailyCache = null;
+        hofDailyCacheTime = 0;
+        try {
+            localStorage.removeItem('hofDailyCache');
+            localStorage.removeItem('hofDailyCacheTime');
+        } catch(e) {}
+    } catch(e) {
+        console.error("updateDailyWinnerDoc error", dateKey, e);
     }
 }
 
@@ -3066,8 +3112,35 @@ async function loadHallOfFameDailyWins(listEl) {
 
             // Laag 3: Firestore — 1 collectie-read van emodjeez_daily_winners
             if (!tally) {
-                const { collection, getDocs } = window.firebaseFuncs;
-                const snapshot = await getDocs(collection(window.db, "emodjeez_daily_winners"));
+                const { collection, getDocs, query, limit } = window.firebaseFuncs;
+                let snapshot = await getDocs(collection(window.db, "emodjeez_daily_winners"));
+
+                // Backfill: collectie is leeg (bijv. na een reset) — bereken winner-docs vanuit daily_results
+                if (snapshot.empty) {
+                    // Gebruik al bekende datums of bepaal ze snel via 1-doc probes
+                    let dateKeys = dailyAvailableDateKeys.length > 0 ? [...dailyAvailableDateKeys] : null;
+                    if (!dateKeys) {
+                        const today = new Date();
+                        const candidates = [];
+                        for (let i = 0; i < 60; i++) {
+                            const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - i));
+                            candidates.push(getUtcDateKey(d));
+                        }
+                        const checks = await Promise.all(candidates.map(async (dk) => {
+                            try {
+                                const r = collection(window.db, "emodjeez_daily_results", dk, "entries");
+                                const s = await getDocs(query(r, limit(1)));
+                                return s.empty ? null : dk;
+                            } catch(e) { return null; }
+                        }));
+                        dateKeys = checks.filter(Boolean);
+                    }
+                    if (dateKeys.length > 0) {
+                        await Promise.all(dateKeys.map(dk => updateDailyWinnerDoc(dk)));
+                        snapshot = await getDocs(collection(window.db, "emodjeez_daily_winners"));
+                    }
+                }
+
                 tally = new Map();
                 snapshot.forEach(d => {
                     const item = d.data();
