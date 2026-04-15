@@ -47,6 +47,9 @@
             if (typeof window.refreshActiveDuelButton === 'function') {
                 window.refreshActiveDuelButton();
             }
+            if (typeof window.checkAndSetDailyBadge === 'function') {
+                window.checkAndSetDailyBadge();
+            }
 
             const urlParams = new URLSearchParams(window.location.search);
             const pendingGameId = urlParams.get('game');
@@ -471,6 +474,39 @@ body {
             color: var(--text-main); font-family: 'Fredoka', sans-serif; text-align: left;
         }
         body.light .settings-name-row input { background: rgba(0,0,0,0.08); }
+        /* --- Naam-suggestie chips --- */
+        .name-taken-msg {
+            font-size: 0.8rem;
+            color: var(--accent);
+            margin-top: 6px;
+            font-weight: 600;
+        }
+        .name-suggestions-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 8px;
+            margin-bottom: 4px;
+        }
+        .name-suggestions-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 2px;
+        }
+        .name-chip {
+            background: rgba(0, 210, 211, 0.15);
+            border: 1px solid rgba(0, 210, 211, 0.4);
+            color: var(--secondary);
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Fredoka', sans-serif;
+            transition: background 0.15s;
+        }
+        .name-chip:hover { background: rgba(0, 210, 211, 0.3); }
+
         .settings-name-row .btn-save-name {
             background: var(--secondary); border: none; border-radius: 10px;
             padding: 10px 16px; color: #000; font-weight: 700;
@@ -802,7 +838,12 @@ body {
 <div id="name-modal" class="modal">
     <div class="modal-content">
         <h3>Wie ben jij?</h3>
-        <input type="text" id="username-input" placeholder="Je naam..." maxlength="12" style="font-size:1.2rem; padding:10px; width:80%; text-align:center; border-radius:10px; border:none; margin-bottom:20px;">
+        <input type="text" id="username-input" placeholder="Je naam..." maxlength="12" style="font-size:1.2rem; padding:10px; width:80%; text-align:center; border-radius:10px; border:none; margin-bottom:12px;">
+        <div id="name-modal-feedback" style="display:none; margin-bottom:12px; text-align:left; width:80%;">
+            <div class="name-taken-msg" id="name-modal-taken-msg"></div>
+            <div class="name-suggestions-label" id="name-modal-suggestions-label"></div>
+            <div class="name-suggestions-chips" id="name-modal-chips"></div>
+        </div>
         <button class="btn btn-solo" onclick="saveUsername()">Opslaan</button>
     </div>
 </div>
@@ -819,6 +860,11 @@ body {
             <div class="settings-name-row">
                 <input type="text" id="settings-username-input" placeholder="Je naam..." maxlength="12">
                 <button class="btn-save-name" onclick="saveSettingsUsername()" id="txt-settings-save">Opslaan</button>
+            </div>
+            <div id="settings-name-feedback" style="display:none;">
+                <div class="name-taken-msg" id="settings-name-taken-msg"></div>
+                <div class="name-suggestions-label" id="settings-name-suggestions-label"></div>
+                <div class="name-suggestions-chips" id="settings-name-chips"></div>
             </div>
         </div>
 
@@ -844,6 +890,17 @@ body {
                 </button>
             </div>
         </div>
+        <div class="settings-section">
+            <div class="settings-label" id="txt-settings-notif">Daily herinnering</div>
+            <div class="theme-toggle-bar">
+                <button class="theme-btn" id="btn-notif-on" onclick="setDailyNotif(true)">🔔 Aan</button>
+                <button class="theme-btn" id="btn-notif-off" onclick="setDailyNotif(false)">🔕 Uit</button>
+            </div>
+            <div id="txt-notif-hint" style="font-size:0.75rem; color:var(--text-muted); margin-top:6px; line-height:1.4;">
+                Toont een badge op het app-icoon als je de Daily nog niet gespeeld hebt.
+            </div>
+        </div>
+
         <div style="margin-top: 24px; font-size: 0.72rem; opacity: 0.35; text-align: center; font-family: sans-serif; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
             © 2026 Emodjeez · v1.0.0 · Created by ViaAventura
         </div>
@@ -859,6 +916,11 @@ body {
             <div class="settings-name-row" style="margin-top:8px;">
                 <input type="text" id="welcome-username-input" placeholder="Je naam..." maxlength="12">
                 <button class="btn-save-name" onclick="saveWelcomeUsername()" id="txt-welcome-play">Spelen! 🎮</button>
+            </div>
+            <div id="welcome-name-feedback" style="display:none; margin-top:8px;">
+                <div class="name-taken-msg" id="welcome-name-taken-msg"></div>
+                <div class="name-suggestions-label" id="welcome-name-suggestions-label"></div>
+                <div class="name-suggestions-chips" id="welcome-name-chips"></div>
             </div>
         </div>
     </div>
@@ -1194,7 +1256,14 @@ const translations = {
         cat4: "Activiteiten",
         cat5: "Reizen en plaatsen",
         cat6: "Objecten",
-        cat7: "Symbolen"
+        cat7: "Symbolen",
+        settingsDailyNotif: "Daily herinnering",
+        settingsDailyNotifOn: "🔔 Aan",
+        settingsDailyNotifOff: "🔕 Uit",
+        settingsDailyNotifHint: "Toont een badge op het app-icoon als je de Daily nog niet gespeeld hebt.",
+        nameTaken: "Deze naam is al bezet.",
+        nameSuggestionsLabel: "Probeer een van deze:",
+        nameChecking: "Naam controleren..."
     },
     en: {
         subtitle: "We all know emojis!<br>But which WhatsApp category do they belong to?<br>Djeez, quite difficult!",
@@ -1299,14 +1368,20 @@ const translations = {
         joinFailed: "Could not join. Please try again.",
         soloLabel: "SOLO RUN",
         dailyLabel: "DAILY",
-        dailyRank: "Daily Rank",
         cat1: "Smileys & People",
         cat2: "Animals & Nature",
         cat3: "Food & Drink",
         cat4: "Activities",
         cat5: "Travel & Places",
         cat6: "Objects",
-        cat7: "Symbols"
+        cat7: "Symbols",
+        settingsDailyNotif: "Daily reminder",
+        settingsDailyNotifOn: "🔔 On",
+        settingsDailyNotifOff: "🔕 Off",
+        settingsDailyNotifHint: "Shows a badge on the app icon when you haven't played today's Daily yet.",
+        nameTaken: "This name is already taken.",
+        nameSuggestionsLabel: "Try one of these:",
+        nameChecking: "Checking name..."
     },
     de: {
         subtitle: "Emojis kennen wir alle!<br>Aber in welche WhatsApp-Kategorie fallen sie?<br>Djeez, ganz schön schwierig!",
@@ -1418,7 +1493,14 @@ const translations = {
         cat4: "Aktivitäten",
         cat5: "Reisen & Orte",
         cat6: "Objekte",
-        cat7: "Symbole"
+        cat7: "Symbole",
+        settingsDailyNotif: "Daily-Erinnerung",
+        settingsDailyNotifOn: "🔔 An",
+        settingsDailyNotifOff: "🔕 Aus",
+        settingsDailyNotifHint: "Zeigt ein Badge auf dem App-Symbol, wenn du das heutige Daily noch nicht gespielt hast.",
+        nameTaken: "Dieser Name ist bereits vergeben.",
+        nameSuggestionsLabel: "Probiere einen dieser Namen:",
+        nameChecking: "Name wird geprüft..."
     }
 };
 let currentLang = 'en';
@@ -1493,7 +1575,12 @@ function applyLanguage() {
     document.getElementById('btn-theme-dark').innerText = t.settingsThemeDark;
     document.getElementById('btn-theme-light').innerText = t.settingsThemeLight;
     document.getElementById('txt-settings-lang').innerText = t.settingsLang;
+    document.getElementById('txt-settings-notif').innerText = t.settingsDailyNotif;
+    document.getElementById('btn-notif-on').innerText = t.settingsDailyNotifOn;
+    document.getElementById('btn-notif-off').innerText = t.settingsDailyNotifOff;
+    document.getElementById('txt-notif-hint').innerText = t.settingsDailyNotifHint;
     updateThemeButtons();
+    updateNotifButtons();
 
     // Welcome modal
     document.getElementById('txt-welcome-title').innerText = t.welcomeTitle;
@@ -1817,6 +1904,7 @@ window.onload = () => {
     applyTheme();
     initLanguage();
     updateProfileDisplay();
+    updateNotifButtons();
     refreshActiveDuelButton();
     showWelcomeIfNeeded();
     updateOnlineStatus();
@@ -1850,11 +1938,19 @@ function closeSettings() {
     document.getElementById('settings-modal').style.display = 'none';
 }
 
-function saveSettingsUsername() {
+async function saveSettingsUsername() {
     const val = document.getElementById('settings-username-input').value.trim();
     if (!val) return;
+    clearNameFeedback('settings-name-feedback');
+    const result = await claimUsername(val);
+    if (!result.success) {
+        showNameSuggestions('settings-name-feedback', 'settings-name-taken-msg', 'settings-name-suggestions-label', 'settings-name-chips', result.suggestions, 'settings-username-input');
+        return;
+    }
+    myUsername = val;
+    localStorage.setItem('emodjeez_username', val);
     document.getElementById('username-input').value = val;
-    saveUsername();
+    updateProfileDisplay();
     closeSettings();
 }
 
@@ -1882,6 +1978,51 @@ function updateThemeButtons() {
     if (lightBtn) lightBtn.classList.toggle('active', saved === 'light');
 }
 
+// --- DAILY BADGE (app-icoon teller) ---
+
+function setDailyNotif(enabled) {
+    localStorage.setItem('emodjeez-daily-notif', enabled ? 'true' : 'false');
+    updateNotifButtons();
+    if (!enabled) {
+        navigator.clearAppBadge?.();
+    } else {
+        checkAndSetDailyBadge();
+    }
+}
+
+function updateNotifButtons() {
+    // default = aan (null of 'true')
+    const enabled = localStorage.getItem('emodjeez-daily-notif') !== 'false';
+    const onBtn = document.getElementById('btn-notif-on');
+    const offBtn = document.getElementById('btn-notif-off');
+    if (onBtn) onBtn.classList.toggle('active', enabled);
+    if (offBtn) offBtn.classList.toggle('active', !enabled);
+}
+
+function checkAndSetDailyBadge() {
+    const enabled = localStorage.getItem('emodjeez-daily-notif') !== 'false';
+    if (!enabled) {
+        navigator.clearAppBadge?.();
+        return;
+    }
+    if (!window.currentUser || !window.firebaseFuncs || !window.db) return;
+
+    const { doc, getDoc } = window.firebaseFuncs;
+    const dateKey = getUtcDateKey();
+    const entryRef = doc(window.db, 'emodjeez_daily_results', dateKey, 'entries', window.currentUser.uid);
+
+    getDoc(entryRef).then(snap => {
+        if (snap.exists() && snap.data().finished !== false) {
+            // Al gespeeld vandaag → badge wissen
+            navigator.clearAppBadge?.();
+        } else {
+            // Nog niet gespeeld → badge tonen
+            navigator.setAppBadge?.(1);
+        }
+    }).catch(() => { /* stil falen — badge niet kritiek */ });
+}
+window.checkAndSetDailyBadge = checkAndSetDailyBadge;
+
 // --- WELKOMST-MODAL (eerste keer spelen) ---
 function showWelcomeIfNeeded() {
     if (localStorage.getItem('emodjeez_username')) return;
@@ -1890,11 +2031,19 @@ function showWelcomeIfNeeded() {
     document.getElementById('welcome-modal').style.display = 'flex';
 }
 
-function saveWelcomeUsername() {
+async function saveWelcomeUsername() {
     const val = document.getElementById('welcome-username-input').value.trim();
     if (!val) return;
+    clearNameFeedback('welcome-name-feedback');
+    const result = await claimUsername(val);
+    if (!result.success) {
+        showNameSuggestions('welcome-name-feedback', 'welcome-name-taken-msg', 'welcome-name-suggestions-label', 'welcome-name-chips', result.suggestions, 'welcome-username-input');
+        return;
+    }
+    myUsername = val;
+    localStorage.setItem('emodjeez_username', val);
     document.getElementById('username-input').value = val;
-    saveUsername();
+    updateProfileDisplay();
     document.getElementById('welcome-modal').style.display = 'none';
 }
 
@@ -1944,9 +2093,123 @@ function openDailyHighscoresFromPlayedModal() {
     openDailyHighscores();
 }
 
-function saveUsername() {
+// --- UNIEKE NAMEN ---
+
+// Genereer 3 beschikbare alternatieve namen (bijv. "Piet473")
+async function generateNameSuggestions(baseName) {
+    if (!window.firebaseFuncs || !window.db) return [];
+    const { doc, getDoc } = window.firebaseFuncs;
+    const suggestions = [];
+    const tried = new Set();
+
+    while (suggestions.length < 3 && tried.size < 20) {
+        const num = Math.floor(Math.random() * 900) + 100; // 100-999
+        const candidate = baseName + num;
+        const key = candidate.toLowerCase();
+        if (tried.has(key)) continue;
+        tried.add(key);
+        try {
+            const snap = await getDoc(doc(window.db, 'emodjeez_usernames', key));
+            if (!snap.exists()) suggestions.push(candidate);
+        } catch (e) {
+            suggestions.push(candidate); // bij fout: beschouw als beschikbaar
+        }
+    }
+    // Fallback: vul aan zonder check als Firestore traag is
+    while (suggestions.length < 3) {
+        suggestions.push(baseName + (Math.floor(Math.random() * 900) + 100));
+    }
+    return suggestions;
+}
+
+// Claimt een naam via een Firestore-transactie.
+// Geeft { success: true } of { success: false, suggestions: [...] } terug.
+async function claimUsername(newName) {
+    if (!window.currentUser || !window.firebaseFuncs || !window.db) {
+        // Offline of auth niet klaar: doorgaan zonder check
+        return { success: true };
+    }
+    const { doc, runTransaction } = window.firebaseFuncs;
+    const myUid = window.currentUser.uid;
+    const newKey = newName.trim().toLowerCase();
+    const newRef = doc(window.db, 'emodjeez_usernames', newKey);
+    const oldKey = (myUsername || '').trim().toLowerCase();
+    const oldRef = (oldKey && oldKey !== newKey)
+        ? doc(window.db, 'emodjeez_usernames', oldKey)
+        : null;
+
+    let taken = false;
+    try {
+        await runTransaction(window.db, async (tx) => {
+            const snap = await tx.get(newRef);
+            if (snap.exists() && snap.data().uid !== myUid) {
+                taken = true;
+                return; // naam bezet door iemand anders
+            }
+            // Vrijgeven oude naam als die van ons was
+            if (oldRef) {
+                const oldSnap = await tx.get(oldRef);
+                if (oldSnap.exists() && oldSnap.data().uid === myUid) {
+                    tx.delete(oldRef);
+                }
+            }
+            // Claimen
+            tx.set(newRef, { uid: myUid, name: newName.trim(), claimedAt: Date.now() });
+        });
+    } catch (e) {
+        console.warn('claimUsername transactie mislukt, doorgaan zonder blokkering:', e);
+        return { success: true }; // bij netwerk-/Firestore-fout: niet blokkeren
+    }
+
+    if (taken) {
+        const suggestions = await generateNameSuggestions(newName.trim());
+        return { success: false, suggestions };
+    }
+    return { success: true };
+}
+
+// Toont foutmelding + klikbare suggestie-chips in het opgegeven feedback-element
+function showNameSuggestions(feedbackId, takenMsgId, labelId, chipsId, suggestions, targetInputId) {
+    const t = translations[currentLang] || translations.en;
+    const feedback = document.getElementById(feedbackId);
+    const takenMsg = document.getElementById(takenMsgId);
+    const label = document.getElementById(labelId);
+    const chips = document.getElementById(chipsId);
+    if (!feedback || !chips) return;
+
+    if (takenMsg) takenMsg.innerText = t.nameTaken;
+    if (label) label.innerText = t.nameSuggestionsLabel;
+
+    chips.innerHTML = '';
+    suggestions.forEach(name => {
+        const btn = document.createElement('button');
+        btn.className = 'name-chip';
+        btn.textContent = name;
+        btn.onclick = () => {
+            const inp = document.getElementById(targetInputId);
+            if (inp) { inp.value = name; inp.focus(); }
+            feedback.style.display = 'none';
+        };
+        chips.appendChild(btn);
+    });
+
+    feedback.style.display = 'block';
+}
+
+function clearNameFeedback(feedbackId) {
+    const el = document.getElementById(feedbackId);
+    if (el) el.style.display = 'none';
+}
+
+async function saveUsername() {
     const val = document.getElementById('username-input').value.trim();
-    if(val.length > 0) {
+    if (val.length > 0) {
+        clearNameFeedback('name-modal-feedback');
+        const result = await claimUsername(val);
+        if (!result.success) {
+            showNameSuggestions('name-modal-feedback', 'name-modal-taken-msg', 'name-modal-suggestions-label', 'name-modal-chips', result.suggestions, 'username-input');
+            return;
+        }
         myUsername = val;
         localStorage.setItem('emodjeez_username', val);
         updateProfileDisplay();
@@ -2130,6 +2393,7 @@ async function finalizeDailyResult(score) {
             playedAt: serverTimestamp(),
             clientFinishedTimestamp: Date.now()
         });
+        navigator.clearAppBadge?.(); // daily gespeeld → badge wissen
         saveHighscore(score, 'daily');
         updateDailyWinnerDoc(dailyDateKey); // fire & forget: winner doc bijwerken op de achtergrond
     } catch (e) {
@@ -2220,6 +2484,7 @@ async function handleCategoryClick(catId) {
             card.classList.add('shake');
         }
         
+        gameActive = false; // voorkom dat speler meerdere keren kan klikken vóór evaluatie
         handleMultiplayerMove(catId);
         setTimeout(() => icon.classList.remove('show-feedback'), 600);
         return;
@@ -2285,6 +2550,9 @@ function gameOverSolo(clickedCat) {
     
     document.getElementById('final-score').innerText = currentScore;
     setLastResultContext(isDailyMode ? 'daily' : 'solo', currentScore);
+    document.getElementById('btn-game-over-action').innerText = isDailyMode
+        ? translations[currentLang].backToMenu
+        : translations[currentLang].playAgain;
     pushNavState();
     document.getElementById('game-over-modal').style.display = 'flex';
 
@@ -2297,6 +2565,15 @@ function gameOverSolo(clickedCat) {
 
 function updateScoreUI() {
     document.getElementById('score-val').innerText = currentScore;
+}
+
+function escapeHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 function resetGameState() {
@@ -2393,9 +2670,9 @@ window.checkAndJoin = async function() {
         openNameChange();
         // Hook to retry join after name is saved
         const oldSave = window.saveUsername;
-        window.saveUsername = function() {
-            oldSave();
-            setTimeout(window.checkAndJoin, 500);
+        window.saveUsername = async function() {
+            await oldSave();
+            if (myUsername && myUsername !== 'Gast') setTimeout(window.checkAndJoin, 500);
         };
         return;
     }
@@ -2555,7 +2832,7 @@ function handleGameState(data) {
     const oppMove = isHost ? data.guestMove : data.hostMove;
     const myScore = isHost ? data.hostScore : data.guestScore;
     
-    document.getElementById('game-info-right').innerHTML = `VS <b>${oppName}</b>`;
+    document.getElementById('game-info-right').innerHTML = `VS <b>${escapeHtml(oppName)}</b>`;
     document.getElementById('score-val').innerText = myScore;
 
     if (data.status === 'finished') {
@@ -2605,6 +2882,7 @@ function handleGameState(data) {
         }
         document.getElementById('final-score').innerText = myScore;
         setLastResultContext('duel', myScore);
+        document.getElementById('btn-game-over-action').innerText = translations[currentLang].backToMenu;
         pushNavState();
         document.getElementById('game-over-modal').style.display = 'flex';
         return;
@@ -2904,7 +3182,7 @@ async function loadHighscores() {
             row.className = 'hs-row' + (isMe ? ' is-me' : '');
             row.innerHTML = `
                 <div class="hs-rank">${idx+1}</div>
-                <div class="hs-name">${item.name}</div>
+                <div class="hs-name">${escapeHtml(item.name)}</div>
                 <div class="hs-score">${item.score}</div>
             `;
             listEl.appendChild(row);
@@ -2940,7 +3218,7 @@ async function loadDailyHighscores() {
         const dailyQuery = query(ref, limit(500));
         const snapshot = await getDocs(dailyQuery);
 
-        let data = snapshot.docs.map(d => d.data());
+        let data = snapshot.docs.map(d => ({ uid: d.id, ...d.data() }));
         data = data.filter(item => item.finished !== false);
 
         data.sort((a, b) => {
@@ -2965,7 +3243,7 @@ async function loadDailyHighscores() {
             row.className = 'hs-row' + (isMe ? ' is-me' : '');
             row.innerHTML = `
                 <div class="hs-rank">${idx+1}</div>
-                <div class="hs-name">${item.name || 'Onbekend'}</div>
+                <div class="hs-name">${escapeHtml(item.name || 'Onbekend')}</div>
                 <div class="hs-score">${item.score || 0}</div>
             `;
             listEl.appendChild(row);
@@ -3003,8 +3281,8 @@ function getRelativeDailyLabel(dateKey) {
     return formatDateKeyForDisplay(dateKey);
 }
 
-function buildDailyDateOptionLabel(dateKey, index, total) {
-    const dayNumber = total - index;
+function buildDailyDateOptionLabel(dateKey) {
+    const dayNumber = getDailyNumber(dateKey);
     return `${getRelativeDailyLabel(dateKey)} - #${dayNumber}`;
 }
 
@@ -3049,7 +3327,7 @@ async function loadDailyDateOptions() {
     selectEl.innerHTML = dailyAvailableDateKeys
         .map((dateKey, idx) => {
             const selected = dateKey === dailyHsDateKey ? 'selected' : '';
-            const label = buildDailyDateOptionLabel(dateKey, idx, total);
+            const label = buildDailyDateOptionLabel(dateKey);
             return `<option value="${dateKey}" ${selected}>${label}</option>`;
         })
         .join('');
@@ -3188,7 +3466,7 @@ async function loadHallOfFameDailyWins(listEl) {
             const rank = rankMedals[idx] ?? idx + 1;
             row.innerHTML = `
                 <div class="hs-rank">${rank}</div>
-                <div class="hs-name">${item.name}</div>
+                <div class="hs-name">${escapeHtml(item.name)}</div>
                 <div class="hs-score" style="display:flex; gap:6px; font-size:0.9rem;">
                     <span>🥇${item.gold}</span>
                     <span>🥈${item.silver}</span>
@@ -3225,7 +3503,7 @@ async function loadHallOfFameDuelWins(listEl) {
             const rank = hofMedals[idx] ?? idx + 1;
             row.innerHTML = `
                 <div class="hs-rank">${rank}</div>
-                <div class="hs-name">${item.name}</div>
+                <div class="hs-name">${escapeHtml(item.name)}</div>
                 <div class="hs-score" style="color: var(--secondary);">⚔️ ${item.wins}</div>
             `;
             listEl.appendChild(row);
