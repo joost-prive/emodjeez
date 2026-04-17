@@ -761,6 +761,7 @@ body {
         <div id="go-duel-details" style="display:none; margin: 12px 0 18px 0; text-align:left; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 12px;"></div>
         <div class="score-pill" style="font-size:2.5rem; margin-bottom:20px;">Score: <span id="final-score">0</span></div>
         <button id="btn-share-result" class="btn btn-multi" onclick="shareGameResultWhatsapp()" style="font-size:1rem;">📱 Deel op WhatsApp</button>
+        <button id="btn-copy-result" class="btn" onclick="copyGameResult()" style="font-size:1rem; background:#555;">📋 Kopieer Score</button>
         <button id="btn-game-over-action" class="btn btn-solo" onclick="resetToHome()">Opnieuw Spelen</button>
     </div>
 </div>
@@ -1216,6 +1217,9 @@ const translations = {
         shareLink: "Stuur deze link naar je vriend:",
         shareWA: "📱 Deel via WhatsApp",
         shareResultBtn: "📱 Deel op WhatsApp",
+        copyScoreBtn: "📋 Kopieer Score",
+        copyScoreDone: "✓ Gekopieerd!",
+        duelLabel: "1v1 Duel",
         copyLink: "📋 Kopieer Link",
         back: "Terug",
         score: "Score:",
@@ -1334,6 +1338,9 @@ const translations = {
         shareLink: "Send this link to your friend:",
         shareWA: "📱 Share via WhatsApp",
         shareResultBtn: "📱 Share on WhatsApp",
+        copyScoreBtn: "📋 Copy Score",
+        copyScoreDone: "✓ Copied!",
+        duelLabel: "1v1 Duel",
         copyLink: "📋 Copy Link",
         back: "Back",
         score: "Score:",
@@ -1452,6 +1459,9 @@ const translations = {
         shareLink: "Sende diesen Link an deinen Freund:",
         shareWA: "📱 Via WhatsApp teilen",
         shareResultBtn: "📱 Auf WhatsApp teilen",
+        copyScoreBtn: "📋 Score kopieren",
+        copyScoreDone: "✓ Kopiert!",
+        duelLabel: "1v1 Duell",
         copyLink: "📋 Link kopieren",
         back: "Zurück",
         score: "Punktzahl:",
@@ -1599,6 +1609,7 @@ function applyLanguage() {
     const isDaily = lastResultContext && lastResultContext.mode === 'daily';
     document.getElementById('btn-game-over-action').innerText = isDaily ? t.backToMenu : t.playAgain;
     document.getElementById('btn-share-result').innerText = t.shareResultBtn;
+    document.getElementById('btn-copy-result').innerText = t.copyScoreBtn;
     document.querySelector('a[href="privacy.html"]').innerText = t.privacy;
 
     // Lobby UI vertalingen
@@ -1813,31 +1824,68 @@ function getDailyScoreHashtag(score) {
     return godTierTags[Math.floor(Math.random() * godTierTags.length)];
 }
 
-function shareGameResultWhatsapp() {
-    if (!lastResultContext) return;
-
+// Bouwt de deelbare scoretekst voor alle spelmodi. Pure functie — ook testbaar.
+function buildShareText(ctx, lang) {
+    const t = translations[lang] || translations.en;
     const lines = [];
 
-    if (lastResultContext.mode === 'daily' && lastResultContext.dailyDateKey) {
-        lines.push(`Daily #${getDailyNumber(lastResultContext.dailyDateKey)}`);
+    if (ctx.mode === 'daily' && ctx.dailyDateKey) {
+        lines.push(`Daily #${getDailyNumber(ctx.dailyDateKey)}`);
+    } else if (ctx.mode === 'solo') {
+        lines.push(t.soloLabel);
+    } else if (ctx.mode === 'duel') {
+        lines.push(t.duelLabel);
     }
 
     lines.push('https://emodjeez.net');
-    lines.push(`Mijn Score: ${lastResultContext.score}`);
+    lines.push(`${t.score} ${ctx.score}`);
 
-    if (lastResultContext.emojis.length > 0) {
-        lines.push(lastResultContext.emojis.join(' '));
+    if (ctx.emojis && ctx.emojis.length > 0) {
+        lines.push(ctx.emojis.join(' '));
     }
 
-    if (lastResultContext.mode === 'daily' && lastResultContext.dailyDateKey) {
-        lines.push(`#Emodjeez${getDailyNumber(lastResultContext.dailyDateKey)}`);
-        lines.push(getDailyScoreHashtag(lastResultContext.score));
+    if (ctx.mode === 'daily' && ctx.dailyDateKey) {
+        lines.push(`#Emodjeez${getDailyNumber(ctx.dailyDateKey)}`);
+        lines.push(getDailyScoreHashtag(ctx.score));
     } else {
         lines.push('#emodjeez');
     }
 
-    const text = lines.join('\n');
+    return lines.join('\n');
+}
+
+function shareGameResultWhatsapp() {
+    if (!lastResultContext) return;
+    const text = buildShareText(lastResultContext, currentLang);
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+function copyGameResult() {
+    if (!lastResultContext) return;
+    const t = translations[currentLang] || translations.en;
+    const text = buildShareText(lastResultContext, currentLang);
+    const btn = document.getElementById('btn-copy-result');
+
+    navigator.clipboard.writeText(text).then(() => {
+        if (btn) {
+            btn.innerText = t.copyScoreDone;
+            setTimeout(() => { btn.innerText = t.copyScoreBtn; }, 2000);
+        }
+    }).catch(() => {
+        // Fallback voor omgevingen zonder clipboard-toegang
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (btn) {
+            btn.innerText = t.copyScoreDone;
+            setTimeout(() => { btn.innerText = t.copyScoreBtn; }, 2000);
+        }
+    });
 }
 
 // --- ANDROID BACK BUTTON ---

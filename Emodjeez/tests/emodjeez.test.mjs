@@ -736,7 +736,8 @@ describe('Vertalingen – volledigheid', () => {
         'loginFailed', 'gameCreateFailed', 'gameInvalid', 'gameInProgress',
         'soloLabel', 'dailyLabel', 'dailyRank', 'hofDailyTitle', 'hofDuelTitle',
         'settingsDailyNotif', 'settingsDailyNotifOn', 'settingsDailyNotifOff', 'settingsDailyNotifHint',
-        'nameTaken', 'nameSuggestionsLabel', 'nameChecking'
+        'nameTaken', 'nameSuggestionsLabel', 'nameChecking',
+        'copyScoreBtn', 'copyScoreDone', 'duelLabel'
     ];
 
     // Uitgebreide translations voor deze test (index.html bevat alle sleutels)
@@ -751,7 +752,8 @@ describe('Vertalingen – volledigheid', () => {
         soloLabel: 'x', dailyLabel: 'x', dailyRank: 'x', hofDailyTitle: 'x', hofDuelTitle: 'x',
         settingsDailyNotif: 'x', settingsDailyNotifOn: 'x', settingsDailyNotifOff: 'x',
         settingsDailyNotifHint: 'x',
-        nameTaken: 'x', nameSuggestionsLabel: 'x', nameChecking: 'x'
+        nameTaken: 'x', nameSuggestionsLabel: 'x', nameChecking: 'x',
+        copyScoreBtn: 'x', copyScoreDone: 'x', duelLabel: 'x'
     };
     const fullTranslations = { nl: { ...base }, en: { ...base }, de: { ...base } };
 
@@ -762,4 +764,171 @@ describe('Vertalingen – volledigheid', () => {
             });
         }
     }
+});
+
+// ─── buildShareText ──────────────────────────────────────────────────────────
+// Duplicaat van de pure functie uit index.html (moet gesynchroniseerd blijven)
+
+const DAILY_BASE_DATE = '2026-03-22';
+const DAILY_BASE_MS   = new Date(DAILY_BASE_DATE + 'T00:00:00Z').getTime();
+
+function getDailyNumberForTest(dateKey) {
+    if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return 1;
+    const ms = new Date(dateKey + 'T00:00:00Z').getTime();
+    return Math.max(1, Math.floor((ms - DAILY_BASE_MS) / 86400000) + 1);
+}
+
+function getDailyScoreHashtagForTest(score) {
+    const n = Math.max(0, Math.floor(Number(score || 0)));
+    if (n <= 5)  return '#EmodjeezNoob';
+    if (n <= 10) return '#EmodjeezRookie';
+    if (n <= 15) return '#EmodjeezTrainee';
+    if (n <= 20) return '#EmodjeezTalent';
+    if (n <= 25) return '#EmodjeezSkilled';
+    if (n <= 30) return '#EmodjeezPro';
+    if (n <= 35) return '#EmodjeezExpert';
+    if (n <= 40) return '#EmodjeezMaster';
+    if (n <= 45) return '#EmodjeezElite';
+    if (n <= 50) return '#EmodjeezHero';
+    if (n <= 55) return '#EmodjeezChampion';
+    if (n <= 60) return '#EmodjeezLegend';
+    if (n <= 65) return '#EmodjeezTitan';
+    if (n <= 70) return '#EmodjeezImmortal';
+    if (n <= 75) return '#EmodjeezSupremacy';
+    return '#EmodjeezGod';
+}
+
+const translationsForTest = {
+    nl: { soloLabel: 'SOLO RUN', duelLabel: '1v1 Duel', score: 'Score:' },
+    en: { soloLabel: 'SOLO RUN', duelLabel: '1v1 Duel', score: 'Score:' },
+    de: { soloLabel: 'SOLO-LAUF', duelLabel: '1v1 Duell', score: 'Punktzahl:' },
+};
+
+function buildShareTextForTest(ctx, lang) {
+    const t = translationsForTest[lang] || translationsForTest.en;
+    const lines = [];
+
+    if (ctx.mode === 'daily' && ctx.dailyDateKey) {
+        lines.push(`Daily #${getDailyNumberForTest(ctx.dailyDateKey)}`);
+    } else if (ctx.mode === 'solo') {
+        lines.push(t.soloLabel);
+    } else if (ctx.mode === 'duel') {
+        lines.push(t.duelLabel);
+    }
+
+    lines.push('https://emodjeez.net');
+    lines.push(`${t.score} ${ctx.score}`);
+
+    if (ctx.emojis && ctx.emojis.length > 0) {
+        lines.push(ctx.emojis.join(' '));
+    }
+
+    if (ctx.mode === 'daily' && ctx.dailyDateKey) {
+        lines.push(`#Emodjeez${getDailyNumberForTest(ctx.dailyDateKey)}`);
+        lines.push(getDailyScoreHashtagForTest(ctx.score));
+    } else {
+        lines.push('#emodjeez');
+    }
+
+    return lines.join('\n');
+}
+
+describe('buildShareText', () => {
+    test('Daily: eerste regel bevat "Daily #N"', () => {
+        const ctx = { mode: 'daily', score: 30, dailyDateKey: '2026-03-22', emojis: ['😀'] };
+        const text = buildShareTextForTest(ctx, 'nl');
+        assert.ok(text.startsWith('Daily #1'), `Verwacht te starten met "Daily #1", kreeg: "${text.split('\n')[0]}"`);
+    });
+
+    test('Daily: bevat de URL', () => {
+        const ctx = { mode: 'daily', score: 20, dailyDateKey: '2026-03-23', emojis: [] };
+        const text = buildShareTextForTest(ctx, 'nl');
+        assert.ok(text.includes('https://emodjeez.net'));
+    });
+
+    test('Daily: bevat score', () => {
+        const ctx = { mode: 'daily', score: 42, dailyDateKey: '2026-03-23', emojis: [] };
+        const text = buildShareTextForTest(ctx, 'nl');
+        assert.ok(text.includes('42'), `Score 42 niet gevonden in: ${text}`);
+    });
+
+    test('Daily: bevat score-hashtag', () => {
+        const ctx = { mode: 'daily', score: 30, dailyDateKey: '2026-03-22', emojis: [] };
+        const text = buildShareTextForTest(ctx, 'nl');
+        assert.ok(text.includes('#EmodjeezPro'), `Verwacht #EmodjeezPro bij score 30`);
+    });
+
+    test('Daily: bevat dag-hashtag (#EmodjeezN)', () => {
+        const ctx = { mode: 'daily', score: 10, dailyDateKey: '2026-03-22', emojis: [] };
+        const text = buildShareTextForTest(ctx, 'nl');
+        assert.ok(text.includes('#Emodjeez1'), `Verwacht #Emodjeez1 voor dag #1`);
+    });
+
+    test('Daily: emojis worden opgenomen als ze aanwezig zijn', () => {
+        const ctx = { mode: 'daily', score: 10, dailyDateKey: '2026-03-22', emojis: ['😀', '🎉', '🔥'] };
+        const text = buildShareTextForTest(ctx, 'nl');
+        assert.ok(text.includes('😀 🎉 🔥'));
+    });
+
+    test('Daily: geen emojis → geen lege emoji-regel', () => {
+        const ctx = { mode: 'daily', score: 10, dailyDateKey: '2026-03-22', emojis: [] };
+        const text = buildShareTextForTest(ctx, 'nl');
+        const lines = text.split('\n');
+        // Geen van de regels mag een lege string zijn
+        assert.ok(lines.every(l => l.length > 0), `Lege regels gevonden: ${JSON.stringify(lines)}`);
+    });
+
+    test('Solo: eerste regel is soloLabel', () => {
+        const ctx = { mode: 'solo', score: 15, dailyDateKey: null, emojis: [] };
+        const nlText = buildShareTextForTest(ctx, 'nl');
+        assert.ok(nlText.startsWith('SOLO RUN'));
+    });
+
+    test('Solo: DE gebruikt eigen soloLabel', () => {
+        const ctx = { mode: 'solo', score: 15, dailyDateKey: null, emojis: [] };
+        const deText = buildShareTextForTest(ctx, 'de');
+        assert.ok(deText.startsWith('SOLO-LAUF'));
+    });
+
+    test('Solo: eindigt op #emodjeez (geen dag-hashtag)', () => {
+        const ctx = { mode: 'solo', score: 15, dailyDateKey: null, emojis: [] };
+        const text = buildShareTextForTest(ctx, 'nl');
+        assert.ok(text.endsWith('#emodjeez'));
+    });
+
+    test('Duel NL: eerste regel is "1v1 Duel"', () => {
+        const ctx = { mode: 'duel', score: 8, dailyDateKey: null, emojis: ['⚔️'] };
+        const text = buildShareTextForTest(ctx, 'nl');
+        assert.ok(text.startsWith('1v1 Duel'));
+    });
+
+    test('Duel DE: eerste regel is "1v1 Duell"', () => {
+        const ctx = { mode: 'duel', score: 8, dailyDateKey: null, emojis: [] };
+        const text = buildShareTextForTest(ctx, 'de');
+        assert.ok(text.startsWith('1v1 Duell'));
+    });
+
+    test('Duel: eindigt op #emodjeez', () => {
+        const ctx = { mode: 'duel', score: 8, dailyDateKey: null, emojis: [] };
+        const text = buildShareTextForTest(ctx, 'en');
+        assert.ok(text.endsWith('#emodjeez'));
+    });
+
+    test('Daily dag #2 klopt', () => {
+        const ctx = { mode: 'daily', score: 5, dailyDateKey: '2026-03-23', emojis: [] };
+        const text = buildShareTextForTest(ctx, 'nl');
+        assert.ok(text.startsWith('Daily #2'), `Verwacht "Daily #2", kreeg: "${text.split('\n')[0]}"`);
+    });
+
+    test('Score is correct opgenomen in de tekst (EN)', () => {
+        const ctx = { mode: 'solo', score: 99, dailyDateKey: null, emojis: [] };
+        const text = buildShareTextForTest(ctx, 'en');
+        assert.ok(text.includes('Score: 99'));
+    });
+
+    test('Score is correct opgenomen in de tekst (DE)', () => {
+        const ctx = { mode: 'solo', score: 99, dailyDateKey: null, emojis: [] };
+        const text = buildShareTextForTest(ctx, 'de');
+        assert.ok(text.includes('Punktzahl: 99'));
+    });
 });
