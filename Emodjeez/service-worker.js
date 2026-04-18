@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emodjeez-v5';
+const CACHE_NAME = 'emodjeez-v6';
 const APP_ASSETS = [
   './index.html',
   './manifest.json',
@@ -84,7 +84,8 @@ self.addEventListener('fetch', (event) => {
       if (cached) return cached;
       return fetch(event.request).then((response) => {
         if (response.ok) {
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+          const cloned = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
         }
         return response;
       });
