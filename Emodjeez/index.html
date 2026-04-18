@@ -2953,7 +2953,6 @@ function handleGameState(data) {
 }
 // Update de verzend-status
 async function handleMultiplayerMove(catId) {
-    if (!gameActive) return;
     if (!gameId || !playerRole) { console.error('handleMultiplayerMove: gameId of playerRole ontbreekt'); return; }
     const t = translations[currentLang];
     const correct = (catId === currentEmojiData.c);
