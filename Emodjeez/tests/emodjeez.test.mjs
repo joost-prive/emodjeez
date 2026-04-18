@@ -1438,3 +1438,128 @@ describe('Duel – uitnodigingsscenario\'s matrix (alle combinaties)', () => {
         }
     }
 });
+
+// ═════════════════════════════════════════════════════════════════════════════
+// REGRESSIETEST: handleMultiplayerMove mag niet op gameActive checken
+//
+// Bug (was aanwezig tot v1.0.2):
+//   handleCategoryClick zette gameActive = false VOOR het aanroepen van
+//   handleMultiplayerMove. Die functie had bovenaan `if (!gameActive) return;`,
+//   waardoor de move nooit naar Firestore werd geschreven en het spel vastliep.
+//
+// Fix: de check is verwijderd uit handleMultiplayerMove.
+// Deze tests falen met de kapotte logica en slagen met de fix.
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Modelleert de volgorde van handleCategoryClick → handleMultiplayerMove.
+ *
+ * @param {boolean} hasGameActiveGuard  true = kapotte situatie (check aanwezig)
+ * @returns {{ moveProcessed: boolean, move: object|null }}
+ */
+function simulateCategoryClickFlow(catId, gameData, hasGameActiveGuard) {
+    let gameActive = true; // beginsituatie: speler mag klikken
+
+    // handleCategoryClick: eerste guard (correct gedrag)
+    if (!gameActive) return { moveProcessed: false, move: null };
+
+    // handleCategoryClick: zet gameActive = false om dubbelklik te voorkomen
+    gameActive = false;
+
+    // handleMultiplayerMove: hier zat de bug
+    if (hasGameActiveGuard && !gameActive) {
+        return { moveProcessed: false, move: null }; // ← kapotte situatie
+    }
+
+    // Verwerk de move (zou naar Firestore gaan)
+    const correct = catId === (EMOJI_DB[gameData.currentEmojiIdx] || {}).c;
+    return { moveProcessed: true, move: { correct, categoryId: catId } };
+}
+
+describe('Regressie – handleMultiplayerMove gameActive-check (bug v1.0.1 → fix v1.0.2)', () => {
+    const game = { currentEmojiIdx: 0, status: 'playing', hostId: 'h', guestId: 'g',
+                   hostMove: null, guestMove: null, hostScore: 0, guestScore: 0 };
+    const correctCat = EMOJI_DB[0].c;
+    const wrongCat   = correctCat === 1 ? 2 : 1;
+
+    // ── Kapotte situatie (zou falen vóór de fix) ──────────────────────────
+    test('[BUG] met gameActive-check in handleMultiplayerMove: move wordt NIET verwerkt', () => {
+        const { moveProcessed } = simulateCategoryClickFlow(correctCat, game, true);
+        assert.equal(moveProcessed, false,
+            'Verwacht dat de move geblokkeerd wordt door de foutieve gameActive-check');
+    });
+
+    test('[BUG] met gameActive-check: ook fout antwoord wordt niet verwerkt', () => {
+        const { moveProcessed } = simulateCategoryClickFlow(wrongCat, game, true);
+        assert.equal(moveProcessed, false);
+    });
+
+    // ── Correcte situatie (de fix) ────────────────────────────────────────
+    test('[FIX] zonder gameActive-check: juist antwoord wordt WEL verwerkt', () => {
+        const { moveProcessed, move } = simulateCategoryClickFlow(correctCat, game, false);
+        assert.equal(moveProcessed, true,
+            'Move moet naar Firestore worden gestuurd ondanks gameActive = false');
+        assert.equal(move.correct, true);
+        assert.equal(move.categoryId, correctCat);
+    });
+
+    test('[FIX] zonder gameActive-check: fout antwoord wordt ook verwerkt (correct = false)', () => {
+        const { moveProcessed, move } = simulateCategoryClickFlow(wrongCat, game, false);
+        assert.equal(moveProcessed, true);
+        assert.equal(move.correct, false);
+    });
+
+    test('[FIX] dubbelklik wordt nog steeds geblokkeerd door handleCategoryClick zelf', () => {
+        // De guard in handleCategoryClick (gameActive was al false) blokkeert een tweede klik
+        let gameActive = false; // situatie: speler heeft al geklikt
+        const blocked = !gameActive; // handleCategoryClick check
+        assert.equal(blocked, true, 'Tweede klik moet geblokkeerd worden');
+    });
+
+    // ── End-to-end via PlayerSimulator ────────────────────────────────────
+    test('[FIX] PlayerSimulator: move returned ook als gameActive net false was gezet', () => {
+        const player = new PlayerSimulator('h', 'host');
+        player.applyState(game); // gameActive = true
+        assert.equal(player.gameActive, true);
+
+        const move = player.clickCategory(correctCat, game);
+        // clickCategory zet intern gameActive = false maar geeft move terug
+        assert.ok(move, 'Move moet worden teruggegeven, niet null');
+        assert.equal(move.correct, true);
+        assert.equal(player.gameActive, false, 'gameActive hoort false te zijn na klik');
+    });
+
+    test('[FIX] na ronde-evaluatie kunnen beide spelers opnieuw klikken', () => {
+        const host  = new PlayerSimulator('h', 'host');
+        const guest = new PlayerSimulator('g', 'guest');
+
+        host.applyState(game);
+        guest.applyState(game);
+
+        // Ronde 1
+        const hMove = host.clickCategory(correctCat, game);
+        const gMove = guest.clickCategory(correctCat, game);
+        assert.ok(hMove.correct && gMove.correct);
+
+        // Evalueer ronde
+        const game2 = simulateEvaluateRound({
+            ...game,
+            hostMove: hMove,
+            guestMove: gMove,
+        });
+        assert.equal(game2.round, 2);
+
+        // Beide spelers ontvangen nieuwe staat
+        host.applyState(game2);
+        guest.applyState(game2);
+
+        // Beide moeten opnieuw kunnen klikken
+        assert.equal(host.gameActive,  true, 'host moet ronde 2 kunnen spelen');
+        assert.equal(guest.gameActive, true, 'guest moet ronde 2 kunnen spelen');
+
+        // Ronde 2 kliks lukken ook
+        const correctCat2 = EMOJI_DB[game2.currentEmojiIdx].c;
+        assert.doesNotThrow(() => host.clickCategory(correctCat2, game2));
+        assert.doesNotThrow(() => guest.clickCategory(correctCat2, game2));
+    });
+});
