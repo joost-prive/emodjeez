@@ -2944,7 +2944,11 @@ function handleGameState(data) {
             evaluateRound();
         }
     } else {
+        // Nieuwe ronde: beide moves zijn null — reset zodat spelers weer kunnen klikken
         statusDiv.innerText = "";
+        gameActive = true;
+        const card = document.getElementById('main-card');
+        if (card) card.classList.remove('correct-pulse', 'shake');
     }
 }
 // Update de verzend-status

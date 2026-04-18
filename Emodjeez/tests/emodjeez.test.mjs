@@ -932,3 +932,509 @@ describe('buildShareText', () => {
         assert.ok(text.includes('Punktzahl: 99'));
     });
 });
+
+// ═════════════════════════════════════════════════════════════════════════════
+// DUEL UITNODIGINGS- EN JOIN-LOGICA
+//
+// De functies hieronder zijn pure extracties van de logica in index.html
+// (checkAndJoin, handleGameState, evaluateRound). Ze simuleren twee devices
+// zonder Firebase-afhankelijkheid.
+// ONDERHOUD: synchroon houden met index.html bij wijzigingen.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─── Pure hulpfuncties (spiegel van index.html) ───────────────────────────
+
+function parseGameIdFromUrl(search) {
+    const params = new URLSearchParams(search);
+    return params.get('game') || null;
+}
+
+function buildInviteUrl(origin, gameId) {
+    return `${origin}/?game=${gameId}`;
+}
+
+/**
+ * Valideert of een gebruiker zich bij een spel mag aansluiten.
+ * Weerspiegelt de checkAndJoin()-logica in index.html.
+ *
+ * @returns {{ allowed: boolean, reason?: string, action?: string }}
+ *   action: 'rejoin-host' | 'rejoin-guest' | 'join-as-guest'
+ */
+function validateJoinAttempt(gameData, uid) {
+    if (!gameData) return { allowed: false, reason: 'not-found' };
+
+    // Speler zit al in het spel (host opent eigen link of guest herconnecteert)
+    if (gameData.hostId === uid) {
+        if (gameData.status === 'finished') return { allowed: false, reason: 'already-finished' };
+        return { allowed: true, action: 'rejoin-host' };
+    }
+    if (gameData.guestId === uid) {
+        if (gameData.status === 'finished') return { allowed: false, reason: 'already-finished' };
+        return { allowed: true, action: 'rejoin-guest' };
+    }
+
+    // Buitenstaander probeert te joinen
+    if (gameData.status === 'finished')  return { allowed: false, reason: 'already-finished' };
+    if (gameData.status !== 'waiting')   return { allowed: false, reason: 'game-in-progress' };
+    if (gameData.guestId)                return { allowed: false, reason: 'game-full' };
+
+    return { allowed: true, action: 'join-as-guest' };
+}
+
+/**
+ * Bepaalt of gameActive op true gezet moet worden op basis van de nieuwe
+ * game-staat. Weerspiegelt de fix in handleGameState (else-tak).
+ */
+function resolveGameActive(gameData, uid) {
+    if (gameData.status !== 'playing') return false;
+    const myMove  = gameData.hostId === uid ? gameData.hostMove  : gameData.guestMove;
+    const oppMove = gameData.hostId === uid ? gameData.guestMove : gameData.hostMove;
+    // Nieuwe ronde: beide moves null → speler mag weer klikken
+    return !myMove && !oppMove;
+}
+
+/**
+ * Minimalistische simulatie van één device/speler.
+ * Verwerkt game-state updates zoals handleGameState() dat doet.
+ */
+class PlayerSimulator {
+    constructor(uid, role) {
+        this.uid   = uid;
+        this.role  = role;
+        this.gameActive = false;
+        this.currentEmojiIdx = null;
+        this.status = null;
+    }
+
+    /** Verwerk een Firestore snapshot (pure, geen bijeffecten). */
+    applyState(gameData) {
+        this.status = gameData.status;
+        this.currentEmojiIdx = gameData.currentEmojiIdx;
+
+        if (gameData.status !== 'playing') {
+            this.gameActive = false;
+            return;
+        }
+
+        const myMove = this.role === 'host' ? gameData.hostMove : gameData.guestMove;
+        // Spiegel van handleGameState: de else-tak (myMove null) stelt gameActive in op true,
+        // of het nu wachten op de tegenstander is of een nieuwe ronde.
+        this.gameActive = !myMove;
+    }
+
+    /** Simuleert klikken op een categorie (zoals handleCategoryClick). */
+    clickCategory(catId, gameData) {
+        if (!this.gameActive) throw new Error('gameActive is false — speler kan niet klikken');
+        this.gameActive = false; // Voorkomt dubbel klikken
+        const correct = catId === (EMOJI_DB[gameData.currentEmojiIdx] || {}).c;
+        return { correct, categoryId: catId, timestamp: Date.now() };
+    }
+}
+
+/**
+ * Pure evaluatielogica (spiegel van evaluateRound-transactie in index.html).
+ * Geeft het bijgewerkte game-document terug, of null als er niets te evalueren valt.
+ */
+function simulateEvaluateRound(gameData) {
+    if (gameData.status !== 'playing') return null;
+    if (!gameData.hostMove || !gameData.guestMove) return null;
+
+    const hCorrect = !!gameData.hostMove.correct;
+    const gCorrect = !!gameData.guestMove.correct;
+
+    if (hCorrect && gCorrect) {
+        return {
+            ...gameData,
+            hostMove: null,
+            guestMove: null,
+            currentEmojiIdx: (gameData.currentEmojiIdx + 1) % EMOJI_DB.length,
+            hostScore: (gameData.hostScore || 0) + 1,
+            guestScore: (gameData.guestScore || 0) + 1,
+            round: (gameData.round || 1) + 1,
+        };
+    }
+
+    let winner = 'draw';
+    if (hCorrect && !gCorrect) winner = gameData.hostId;
+    if (!hCorrect && gCorrect) winner = gameData.guestId;
+
+    return {
+        ...gameData,
+        status: 'finished',
+        winner,
+        hostScore: hCorrect ? (gameData.hostScore || 0) + 1 : (gameData.hostScore || 0),
+        guestScore: gCorrect ? (gameData.guestScore || 0) + 1 : (gameData.guestScore || 0),
+    };
+}
+
+// ─── Tests: URL-parsing en linkbouw ──────────────────────────────────────
+
+describe('Duel – URL-parsing (uitnodigingslink)', () => {
+    test('parseert gameId uit ?game= parameter', () => {
+        assert.equal(parseGameIdFromUrl('?game=abc123'), 'abc123');
+    });
+
+    test('geeft null terug als parameter ontbreekt', () => {
+        assert.equal(parseGameIdFromUrl(''), null);
+        assert.equal(parseGameIdFromUrl('?foo=bar'), null);
+    });
+
+    test('werkt met extra parameters in de URL', () => {
+        assert.equal(parseGameIdFromUrl('?utm_source=whatsapp&game=xyz99'), 'xyz99');
+    });
+
+    test('buildInviteUrl – web-origin', () => {
+        const url = buildInviteUrl('https://emodjeez.net', 'game42');
+        assert.equal(url, 'https://emodjeez.net/?game=game42');
+    });
+
+    test('buildInviteUrl – app-origin (localhost/file)', () => {
+        const url = buildInviteUrl('http://localhost:8080', 'game42');
+        assert.ok(url.includes('game42'));
+    });
+
+    test('dezelfde gameId via WhatsApp of gekopieerde link produceert identieke URL', () => {
+        const origin = 'https://emodjeez.net';
+        const id = 'gameXYZ';
+        // WhatsApp en "link kopiëren" gebruiken dezelfde buildInviteUrl-logica
+        assert.equal(buildInviteUrl(origin, id), buildInviteUrl(origin, id));
+    });
+});
+
+// ─── Tests: join-validatie (alle scenario-combinaties) ───────────────────
+
+describe('Duel – validateJoinAttempt (alle uitnodigingsscenario\'s)', () => {
+    const HOST_UID     = 'host-uid';
+    const GUEST_UID    = 'guest-uid';
+    const OTHER_UID    = 'stranger-uid';
+    const STRANGER_UID = 'fourth-uid'; // Iemand die helemaal niet in het spel zit
+
+    const waitingGame = {
+        hostId: HOST_UID, guestId: null,
+        status: 'waiting', currentEmojiIdx: 0,
+        hostScore: 0, guestScore: 0,
+    };
+    const playingGame  = { ...waitingGame, guestId: GUEST_UID, status: 'playing' };
+    const finishedGame = { ...playingGame, status: 'finished', winner: HOST_UID };
+    // Wachtend spel waarbij OTHER_UID al de guest is — STRANGER_UID mag er niet in
+    const fullWaiting  = { ...waitingGame, guestId: OTHER_UID };
+
+    // ── Scenario A: uitnodigende speler klikt op eigen link ──────────────
+    test('[Host/eigen link] host herverbindt met lopend spel', () => {
+        const r = validateJoinAttempt(playingGame, HOST_UID);
+        assert.equal(r.allowed, true);
+        assert.equal(r.action, 'rejoin-host');
+    });
+
+    test('[Host/eigen link] host herverbindt met wachtend spel', () => {
+        const r = validateJoinAttempt(waitingGame, HOST_UID);
+        assert.equal(r.allowed, true);
+        assert.equal(r.action, 'rejoin-host');
+    });
+
+    test('[Host/eigen link] host kan niet terug naar afgelopen spel', () => {
+        const r = validateJoinAttempt(finishedGame, HOST_UID);
+        assert.equal(r.allowed, false);
+        assert.equal(r.reason, 'already-finished');
+    });
+
+    // ── Scenario B: ontvanger opent link voor het eerst ──────────────────
+    test('[Gast/eerste keer] joinen op een wachtend spel is toegestaan', () => {
+        const r = validateJoinAttempt(waitingGame, GUEST_UID);
+        assert.equal(r.allowed, true);
+        assert.equal(r.action, 'join-as-guest');
+    });
+
+    test('[Gast/eerste keer] onbekende gebruiker mag niet joinen op al-spelend spel', () => {
+        // playingGame heeft al een andere guest (GUEST_UID); STRANGER_UID probeert te joinen
+        const r = validateJoinAttempt(playingGame, STRANGER_UID);
+        assert.equal(r.allowed, false);
+        assert.equal(r.reason, 'game-in-progress');
+    });
+
+    // ── Scenario C: ontvanger herverbindt (had app al open of opent link opnieuw) ─
+    test('[Gast/herverbinden] guest opent eigen link opnieuw → rejoin', () => {
+        const r = validateJoinAttempt(playingGame, GUEST_UID);
+        // GUEST_UID === playingGame.guestId → rejoin-guest
+        // (NB: playingGame heeft guestId: GUEST_UID)
+        const rRejoin = validateJoinAttempt({ ...playingGame, guestId: GUEST_UID }, GUEST_UID);
+        assert.equal(rRejoin.allowed, true);
+        assert.equal(rRejoin.action, 'rejoin-guest');
+    });
+
+    test('[Gast/herverbinden] guest opent link van afgelopen spel → geblokkeerd', () => {
+        const r = validateJoinAttempt({ ...finishedGame, guestId: GUEST_UID }, GUEST_UID);
+        assert.equal(r.allowed, false);
+        assert.equal(r.reason, 'already-finished');
+    });
+
+    // ── Scenario D: derde persoon probeert in te breken ──────────────────
+    test('[Derde/vol spel] derde gebruiker kan niet joinen als spel vol is', () => {
+        const r = validateJoinAttempt(playingGame, OTHER_UID);
+        assert.equal(r.allowed, false);
+        assert.equal(r.reason, 'game-in-progress');
+    });
+
+    test('[Derde/wachten] vierde gebruiker kan niet joinen als guestId al bezet is', () => {
+        // fullWaiting heeft guestId: OTHER_UID; STRANGER_UID is de echte onbekende derde
+        const r = validateJoinAttempt(fullWaiting, STRANGER_UID);
+        assert.equal(r.allowed, false);
+        assert.equal(r.reason, 'game-full');
+    });
+
+    test('[Ontbrekend spel] gameData null → not-found', () => {
+        assert.equal(validateJoinAttempt(null, HOST_UID).reason, 'not-found');
+    });
+
+    // ── Platform-combinaties: app vs web maakt geen verschil voor join-logica ─
+    const PLATFORMS = ['app (localhost)', 'web (emodjeez.net)'];
+    for (const platform of PLATFORMS) {
+        test(`[${platform}] ontvanger join wachtend spel → toegestaan`, () => {
+            const r = validateJoinAttempt(waitingGame, GUEST_UID);
+            assert.equal(r.allowed, true);
+        });
+
+        test(`[${platform}] uitnodigende speler herverbindt als host → rejoin`, () => {
+            const r = validateJoinAttempt(waitingGame, HOST_UID);
+            assert.equal(r.action, 'rejoin-host');
+        });
+    }
+});
+
+// ─── Tests: gameActive reset (regressietest voor de bug) ─────────────────
+
+describe('Duel – gameActive na ronde-progressie (regressietest bug)', () => {
+    const HOST_UID  = 'host-uid';
+    const GUEST_UID = 'guest-uid';
+
+    const newRoundState = {
+        status: 'playing',
+        hostId: HOST_UID, guestId: GUEST_UID,
+        hostMove: null, guestMove: null,
+        currentEmojiIdx: 5, round: 2,
+    };
+
+    test('host: gameActive = true na nieuwe ronde (beide moves null)', () => {
+        assert.equal(resolveGameActive(newRoundState, HOST_UID), true);
+    });
+
+    test('guest: gameActive = true na nieuwe ronde (beide moves null)', () => {
+        assert.equal(resolveGameActive(newRoundState, GUEST_UID), true);
+    });
+
+    test('gameActive = false als eigen move al verzonden', () => {
+        const state = { ...newRoundState, hostMove: { correct: true } };
+        assert.equal(resolveGameActive(state, HOST_UID), false);
+    });
+
+    test('gameActive = false als status finished is', () => {
+        const state = { ...newRoundState, status: 'finished' };
+        assert.equal(resolveGameActive(state, HOST_UID), false);
+    });
+});
+
+// ─── Tests: volledige multi-ronde game simulatie (twee devices) ───────────
+
+describe('Duel – multi-ronde simulatie (twee devices)', () => {
+    function makeGame(emojiIdx = 0) {
+        return {
+            status: 'playing',
+            hostId: 'h', guestId: 'g',
+            hostMove: null, guestMove: null,
+            hostScore: 0, guestScore: 0,
+            currentEmojiIdx: emojiIdx,
+            round: 1,
+        };
+    }
+
+    test('ronde 1: beide correct → beide devices krijgen gameActive terug voor ronde 2', () => {
+        let game = makeGame(0);
+        const host  = new PlayerSimulator('h', 'host');
+        const guest = new PlayerSimulator('g', 'guest');
+
+        // Beide devices ontvangen beginstand
+        host.applyState(game);
+        guest.applyState(game);
+        assert.equal(host.gameActive, true);
+        assert.equal(guest.gameActive, true);
+
+        // Beide klikken de juiste categorie (c van emoji idx 0)
+        const correctCat = EMOJI_DB[0].c;
+        const hMove = host.clickCategory(correctCat, game);
+        game = { ...game, hostMove: hMove };
+        host.applyState(game);   // host ziet eigen move → gameActive false
+        guest.applyState(game);  // guest ziet host's move
+
+        const gMove = guest.clickCategory(correctCat, game);
+        game = { ...game, guestMove: gMove };
+        host.applyState(game);
+        guest.applyState(game);
+
+        // Evalueer de ronde
+        const nextGame = simulateEvaluateRound(game);
+        assert.ok(nextGame, 'ronde moet geëvalueerd worden');
+        assert.equal(nextGame.round, 2);
+        assert.equal(nextGame.hostMove, null);
+        assert.equal(nextGame.guestMove, null);
+
+        // Beide devices ontvangen de nieuwe staat
+        host.applyState(nextGame);
+        guest.applyState(nextGame);
+
+        // *** Dit is de regressiecheck voor de bug ***
+        assert.equal(host.gameActive,  true, 'host moet opnieuw kunnen klikken in ronde 2');
+        assert.equal(guest.gameActive, true, 'guest moet opnieuw kunnen klikken in ronde 2');
+    });
+
+    test('drie rondes beide correct → scores 3-3, round === 4', () => {
+        let game = makeGame(0);
+
+        for (let r = 1; r <= 3; r++) {
+            const correctCat = EMOJI_DB[game.currentEmojiIdx].c;
+            game = {
+                ...game,
+                hostMove:  { correct: true,  categoryId: correctCat, timestamp: Date.now() },
+                guestMove: { correct: true,  categoryId: correctCat, timestamp: Date.now() },
+            };
+            const next = simulateEvaluateRound(game);
+            assert.ok(next, `ronde ${r} moet geëvalueerd worden`);
+            game = next;
+        }
+
+        assert.equal(game.hostScore, 3);
+        assert.equal(game.guestScore, 3);
+        assert.equal(game.round, 4);
+        assert.equal(game.status, 'playing');
+    });
+
+    test('host fout in ronde 2 → guest wint, game eindigt', () => {
+        let game = makeGame(0);
+        const correctCat = EMOJI_DB[0].c;
+        const wrongCat   = correctCat === 1 ? 2 : 1;
+
+        // Ronde 1: beide correct
+        game = { ...game,
+            hostMove:  { correct: true, categoryId: correctCat },
+            guestMove: { correct: true, categoryId: correctCat },
+        };
+        game = simulateEvaluateRound(game);
+
+        // Ronde 2: host fout
+        const r2Correct = EMOJI_DB[game.currentEmojiIdx].c;
+        const r2Wrong   = r2Correct === 1 ? 2 : 1;
+        game = { ...game,
+            hostMove:  { correct: false, categoryId: r2Wrong },
+            guestMove: { correct: true,  categoryId: r2Correct },
+        };
+        const finalGame = simulateEvaluateRound(game);
+
+        assert.equal(finalGame.status, 'finished');
+        assert.equal(finalGame.winner, 'g');       // guest wint
+        assert.equal(finalGame.hostScore, 1);      // ronde 1 scoorde host nog
+        assert.equal(finalGame.guestScore, 2);     // ronde 1 + ronde 2
+    });
+
+    test('guest kan niet nogmaals klikken nadat move al verzonden is', () => {
+        const game = makeGame(0);
+        const guest = new PlayerSimulator('g', 'guest');
+        guest.applyState(game);
+
+        const correctCat = EMOJI_DB[0].c;
+        guest.clickCategory(correctCat, game); // eerste klik OK
+        assert.equal(guest.gameActive, false);
+        assert.throws(
+            () => guest.clickCategory(correctCat, game),
+            /gameActive is false/,
+            'tweede klik moet geweigerd worden'
+        );
+    });
+
+    test('host klikt juiste categorie, guest nog niet → host gameActive false, guest nog true', () => {
+        let game = makeGame(0);
+        const host  = new PlayerSimulator('h', 'host');
+        const guest = new PlayerSimulator('g', 'guest');
+
+        host.applyState(game);
+        guest.applyState(game);
+
+        const correctCat = EMOJI_DB[0].c;
+        const hMove = host.clickCategory(correctCat, game);
+        game = { ...game, hostMove: hMove };
+
+        host.applyState(game);
+        guest.applyState(game);
+
+        assert.equal(host.gameActive,  false, 'host wacht op guest');
+        assert.equal(guest.gameActive, true,  'guest kan nog klikken');
+    });
+});
+
+// ─── Tests: uitnodigings-methode-matrix ──────────────────────────────────
+
+describe('Duel – uitnodigingsscenario\'s matrix (alle combinaties)', () => {
+    const HOST_UID  = 'host-uid';
+    const GUEST_UID = 'guest-uid';
+
+    const INVITE_METHODS  = ['whatsapp', 'copy-link'];
+    const RECEIVER_STATES = ['fresh-open', 'already-open'];
+    const INVITER_ACTIONS = ['clicks-own-link', 'returns-to-game'];
+    const PLATFORMS       = ['app', 'web'];
+
+    // De invite-methode (WhatsApp vs kopiëren) en het platform (app vs web)
+    // beïnvloeden alleen het deelproces, niet de join-logica:
+    // ze produceren allemaal dezelfde /?game=<id> URL.
+    // Receiver-state en inviter-action beïnvloeden WEL de join-logica.
+
+    for (const inviteMethod of INVITE_METHODS) {
+        for (const receiverState of RECEIVER_STATES) {
+            for (const inviterAction of INVITER_ACTIONS) {
+                for (const hostPlatform of PLATFORMS) {
+                    for (const guestPlatform of PLATFORMS) {
+                        const label = `[${inviteMethod}] [recv:${receiverState}] [host:${inviterAction}] [H:${hostPlatform}/G:${guestPlatform}]`;
+
+                        test(`${label} → guest kan joinen op wachtend spel`, () => {
+                            const waitingGame = {
+                                hostId: HOST_UID, guestId: null,
+                                status: 'waiting',
+                            };
+                            // Ongeacht methode/platform: guest mag altijd joinen op wachtend spel
+                            const r = validateJoinAttempt(waitingGame, GUEST_UID);
+                            assert.equal(r.allowed, true);
+                            assert.equal(r.action, 'join-as-guest');
+                        });
+
+                        test(`${label} → host herkent eigen spel bij herverbinden`, () => {
+                            const gameState = inviterAction === 'clicks-own-link'
+                                ? { hostId: HOST_UID, guestId: null,      status: 'waiting' }
+                                : { hostId: HOST_UID, guestId: GUEST_UID, status: 'playing' };
+                            const r = validateJoinAttempt(gameState, HOST_UID);
+                            assert.equal(r.allowed, true);
+                            assert.equal(r.action, 'rejoin-host');
+                        });
+
+                        test(`${label} → link bevat altijd correct ?game= formaat`, () => {
+                            const origin = hostPlatform === 'web'
+                                ? 'https://emodjeez.net'
+                                : 'http://localhost:8080';
+                            const gameId = 'testGame123';
+                            const url = buildInviteUrl(origin, gameId);
+                            const parsed = parseGameIdFromUrl(new URL(url).search);
+                            assert.equal(parsed, gameId);
+                        });
+
+                        if (receiverState === 'already-open') {
+                            test(`${label} → guest al verbonden: herverbinden zonder fout`, () => {
+                                const playingGame = {
+                                    hostId: HOST_UID, guestId: GUEST_UID, status: 'playing',
+                                };
+                                const r = validateJoinAttempt(playingGame, GUEST_UID);
+                                assert.equal(r.allowed, true);
+                                assert.equal(r.action, 'rejoin-guest');
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+});
