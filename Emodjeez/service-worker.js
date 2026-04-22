@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emodjeez-v6';
+const CACHE_NAME = 'emodjeez-v7';
 const APP_ASSETS = [
   './index.html',
   './manifest.json',
