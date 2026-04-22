@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Static dev server (PWA)",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8080"],
+      "port": 8080
+    },
+    {
+      "name": "Tests",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--test", "tests/emodjeez.test.mjs"],
+      "port": null
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch:*)",
+      "Bash(node --test tests/emodjeez.test.mjs)",
+      "WebSearch",
+      "WebFetch(domain:unicode.org)",
+      "WebFetch(domain:emojipedia.org)",
+      "Bash(npm install *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://emodjeez.web.app)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://emodjeez.firebaseapp.com)",
+      "Bash(node screenshot.js)",
+      "mcp__scheduled-tasks__create_scheduled_task",
+      "Read(//c/dev/02-emodjeez/**)",
+      "Bash(xargs grep *)",
+      "Bash(grep -o '{c:[0-9]*,e:\"[^\"]*\"}' \"C:/dev/02-emodjeez/Emodjeez/index.html\")",
+      "Bash(grep -o '{c:[0-9]*,e:\"[^\"]*\"}' \"C:/Users/jmava/Downloads/index.html\")"
+    ]
+  }
+}
